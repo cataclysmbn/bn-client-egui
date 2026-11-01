@@ -94,7 +94,8 @@ fn the_vehicle_editor_opens_installs_and_undoes() {
     save(&mut h, "vehicle-editor-list");
     invoke(&mut h, "vehicle:open", row("prototype:bicycle"));
     let opened = glyphs(&h, "vehicle:grid");
-    assert_eq!((opened.len(), opened[0].chars().count()), (5, 7));
+    // The canvas keeps twelve free mounts around the vehicle, at least 41 by 31.
+    assert_eq!((opened.len(), opened[0].chars().count()), (31, 41));
     assert_eq!(drawn_cells(&h, "vehicle:grid"), 3);
 
     invoke(&mut h, "vehicle:mount", row("mount:1,0"));
@@ -115,8 +116,8 @@ fn the_vehicle_editor_opens_installs_and_undoes() {
     invoke(&mut h, "vehicle:tool", row("tool:mount"));
     assert_eq!(rows(&h, "vehicle:stack"), before);
 
-    invoke(&mut h, "vehicle:spawn", InvokeArgs::default());
-    // The spawn leaves for the map; the map editor's vehicle editor comes back to the same design.
+    invoke(&mut h, "vehicle:test_drive", InvokeArgs::default());
+    // The test drive leaves for the map; the editor key brings the vehicle editor back to the same design.
     run_until(&mut h, "the map", 120, |h| {
         !h.state().model.busy()
             && h.state()
@@ -126,8 +127,6 @@ fn the_vehicle_editor_opens_installs_and_undoes() {
                 .is_some_and(|s| s.role == ScreenRole::Map)
     });
     crate::live_editor_walk::click(&mut h, "Map Editor");
-    wait_kind(&mut h, "editor");
-    invoke(&mut h, "editor:vehicle", InvokeArgs::default());
     wait_kind(&mut h, "vehicle_editor");
     invoke(&mut h, "vehicle:source", row("source:world"));
     assert_eq!(rows(&h, "vehicle:world").len(), 1);
@@ -149,19 +148,8 @@ fn the_vehicle_editor_opens_installs_and_undoes() {
     invoke(&mut h, "vehicle:undo", InvokeArgs::default());
     assert_eq!(rows(&h, "vehicle:stack").len(), plain.len());
     invoke(&mut h, "vehicle:done", InvokeArgs::default());
-    // Left for the map editor it was reached from, and that left for where the game was.
+    // The test drive's editor key opened it over the map, so it leaves for where the game was.
     invoke(&mut h, "QUIT", InvokeArgs::default());
-    wait_kind(&mut h, "editor");
-    invoke(&mut h, "QUIT", InvokeArgs::default());
-    if h.state()
-        .model
-        .screens()
-        .last()
-        .and_then(|s| s.kind.as_deref())
-        == Some("editor")
-    {
-        crate::live_editor_walk::click(&mut h, "Leave without saving");
-    }
     run_until(&mut h, "out of the editors", 120, |h| {
         !h.state().model.busy()
             && h.state()

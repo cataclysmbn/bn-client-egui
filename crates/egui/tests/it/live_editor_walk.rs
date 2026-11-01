@@ -940,9 +940,12 @@ fn the_vehicle_editor_prototypes_list_keeps_its_id_column_clear_of_the_scroll_ba
     click(&mut h, "Vehicle editor");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
+    show_advanced(&mut h);
     // Opened, the prototype takes the right of the window and the list is left a narrow pane.
     double_click(&mut h, "Offroad Car");
     wait_kind(&mut h, "vehicle_editor");
+    rest(&mut h);
+    click(&mut h, "Vehicles");
     rest(&mut h);
     shot_at(
         &mut h,
@@ -988,6 +991,7 @@ fn the_vehicle_editor_opens_a_prototype_installs_and_saves_a_mod_file() {
     click(&mut h, "Vehicle editor");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
+    show_advanced(&mut h);
     shot(&mut h, "veh-1-editor");
     click_input(&mut h, "Vehicles");
     rest(&mut h);
@@ -1011,9 +1015,8 @@ fn the_vehicle_editor_opens_a_prototype_installs_and_saves_a_mod_file() {
     click_tab(&mut h, "Part settings");
     rest(&mut h);
     shot(&mut h, "veh-8-part-tab");
-    click_beside(&mut h, "Fuel");
-    replace_text(&mut h, "diesel");
-    key(&mut h, egui::Key::Enter);
+    open_select(&mut h, "Fuel");
+    click(&mut h, "diesel");
     rest(&mut h);
     shot(&mut h, "veh-9-fuel");
 
@@ -1064,13 +1067,11 @@ fn the_vehicle_editor_opens_a_prototype_installs_and_saves_a_mod_file() {
     rest(&mut h);
     shot(&mut h, "veh-18-saved");
 
-    // The edited design spawned beside the avatar by a test drive, and looked at on the map the editor leaves for.
-    click_button(&mut h, "Test drive");
-    run_until(&mut h, "the map", 60, |h| {
-        !h.state().model.busy() && top(h).as_deref() != Some("vehicle_editor")
-    });
+    // The edited design spawned beside the avatar; its diesel tank is not a drive the engine is ready for, so Spawn
+    // stays in the editor.
+    menu(&mut h, "World", "Spawn");
     rest(&mut h);
-    shot(&mut h, "veh-20-spawned-on-map");
+    shot(&mut h, "veh-20-spawned");
     let saved = std::fs::read_to_string(&path).unwrap_or_default();
     assert!(
         saved.contains("Walker Car") && saved.contains("diesel"),
@@ -1090,6 +1091,7 @@ fn the_vehicle_editor_sets_the_ammunition_of_a_turret_from_the_part_tab() {
     click(&mut h, "Vehicle editor");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
+    show_advanced(&mut h);
     click_input(&mut h, "Vehicles");
     type_text(&mut h, "armored_car");
     key(&mut h, egui::Key::Enter);
@@ -2125,7 +2127,7 @@ fn the_map_editor_draws_and_erases_the_squares_of_an_overmap_special_and_saves_t
     rest(&mut h);
     shot_at(&mut h, "sd-3-catalog", &sizes);
     dump(&h, "catalog filtered");
-    double_click(&mut h, "forest_thick");
+    double_click(&mut h, "(forest_thick)");
     println!("DOC after pick: {}", document(&h));
     assert!(document(&h).contains("forest_thick"), "{}", document(&h));
     shot_at(&mut h, "sd-4-picked", &sizes);
@@ -3646,6 +3648,7 @@ fn the_vehicle_editor_answers_the_audits_clicks() {
     click(&mut h, "Vehicle editor");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
+    show_advanced(&mut h);
     shot(&mut h, "v1-open");
     click_search(&mut h, "Vehicles");
     type_text(&mut h, "bicycle");
@@ -3655,7 +3658,7 @@ fn the_vehicle_editor_answers_the_audits_clicks() {
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
     shot(&mut h, "v2-prototype");
-    click(&mut h, "Install");
+    click(&mut h, "Pencil");
     rest(&mut h);
     shot(&mut h, "v3-tool-single-click");
     let (engine, shown) = chosen_rows(&h, "vehicle:canvas_tools");
@@ -4089,6 +4092,14 @@ fn the_editors_show_the_engines_hints_and_answer_clicks_quickly() {
 fn the_editors_show_mod_folders_required_marks_the_leave_prompt_and_the_fuel_picker() {
     let sizes = [(1920.0, 1080.0)];
     let mut h = audit_start();
+    // The engine ignores `Show advanced settings` on the map editor's start page: the vehicle editor sets it.
+    click(&mut h, "Editor");
+    click(&mut h, "Vehicle editor");
+    wait_kind(&mut h, "vehicle_editor");
+    rest(&mut h);
+    show_advanced(&mut h);
+    key(&mut h, egui::Key::Escape);
+    rest(&mut h);
     click(&mut h, "Editor");
     click(&mut h, "Choose mods");
     rest(&mut h);
@@ -4098,7 +4109,6 @@ fn the_editors_show_mod_folders_required_marks_the_leave_prompt_and_the_fuel_pic
     key(&mut h, egui::Key::Escape);
     click(&mut h, "Yes");
     wait_kind(&mut h, "editor");
-    show_advanced(&mut h);
     rest(&mut h);
     // A path outside any mod folder, and one in another mod's folder, are refused with a suggestion.
     let mods = crate::common::live::profile_dir().join("mods");
@@ -4150,12 +4160,34 @@ fn the_editors_show_mod_folders_required_marks_the_leave_prompt_and_the_fuel_pic
     // The vehicle editor: a new design, a tank, and its fuel.
     click(&mut h, "Editor");
     click(&mut h, "Vehicle editor");
+    // The mod's mapgen is used by nothing, so the engine reports it as data error while it loads: Continue it.
+    continue_through_data_errors(&mut h);
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
     menu(&mut h, "File", "New vehicle");
     rest(&mut h);
     shot_at(&mut h, "c8-new-vehicle-suggested-name", &sizes);
     dump(&h, "new vehicle");
+}
+
+/// Presses the first choice of every data error the engine reports while it loads, until the editor is up.
+fn continue_through_data_errors(h: &mut H) {
+    for _ in 0..10_000 {
+        let error = h
+            .state()
+            .model
+            .menu()
+            .filter(|m| m.context == "DEBUG_MSG")
+            .and_then(|m| m.choices.first().map(|c| c.id.clone()));
+        if let Some(id) = error {
+            h.state_mut().model.choose(&id);
+        } else if !h.state().model.busy() && top(h).as_deref() == Some("vehicle_editor") {
+            return;
+        }
+        h.run_steps(1);
+        std::thread::sleep(std::time::Duration::from_millis(30));
+    }
+    panic!("the editor never came up after its data errors");
 }
 
 /// Paints one square of the open mapgen so the document counts as edited.
@@ -4298,8 +4330,7 @@ fn a_first_time_modder_builds_a_house_in_a_new_mod_with_picks_and_shape_tools() 
     click(&mut h, "New mod folder");
     walk_shot(&mut h, "02-new-mod-folder");
     dump(&h, "new mod folder");
-    println!("PATH {}", field(&h, "editor:new", "path"));
-    click_beside(&mut h, "Overmap terrain");
+    click_beside(&mut h, "New map/Name");
     replace_text(&mut h, "house_zz");
     click(&mut h, "Create");
     if find(&h, "Continue").is_some() {
