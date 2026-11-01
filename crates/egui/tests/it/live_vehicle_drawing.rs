@@ -14,7 +14,7 @@ use egui_kittest::kittest::NodeT;
 
 /// The drawn square of the cell `id`, found by the cells' own `x` and `y`: the canvas's squares are the lattice of
 /// square buttons, the first of them the grid's first cell.
-fn square(h: &H, id: &str) -> egui::Pos2 {
+pub(crate) fn square(h: &H, id: &str) -> egui::Pos2 {
     let top = h.state().model.screens().last().unwrap();
     let Some(Component::Grid(grid)) = top.root.as_ref().unwrap().find("vehicle:grid") else {
         panic!("no vehicle:grid");

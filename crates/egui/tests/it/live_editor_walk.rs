@@ -26,6 +26,32 @@ pub(crate) fn labels(h: &H) -> Vec<String> {
         .collect()
 }
 
+/// What a walk has spent so far: every input a player's hand made through the helpers below.
+#[derive(Clone, Copy, Default, Debug)]
+struct Spent {
+    clicks: usize,
+    keys: usize,
+    typed: usize,
+    drags: usize,
+    wheels: usize,
+}
+
+thread_local! {
+    static SPENT: std::cell::Cell<Spent> = std::cell::Cell::new(Spent::default());
+}
+
+fn spend(count: impl FnOnce(&mut Spent)) {
+    SPENT.with(|s| {
+        let mut b = s.get();
+        count(&mut b);
+        s.set(b);
+    });
+}
+
+fn spent() -> Spent {
+    SPENT.with(|s| s.get())
+}
+
 /// Pictures of the window at both sizes.
 fn shot(h: &mut H, name: &str) {
     let Some(dir) = std::env::var_os("SHOT_DIR") else {
@@ -227,6 +253,7 @@ fn press(h: &mut H, label: &str) {
 }
 
 pub(crate) fn key(h: &mut H, key: egui::Key) {
+    spend(|b| b.keys += 1);
     h.key_press(key);
     rest(h);
 }
@@ -351,6 +378,7 @@ fn wheel(h: &mut H, dy: f32) {
 
 /// Turns the wheel over `at` by `dy` points and lets the frames follow.
 pub(crate) fn wheel_at(h: &mut H, at: egui::Pos2, dy: f32) {
+    spend(|b| b.wheels += 1);
     h.hover_at(at);
     h.run_steps(2);
     h.event(egui::Event::MouseWheel {
@@ -363,6 +391,7 @@ pub(crate) fn wheel_at(h: &mut H, at: egui::Pos2, dy: f32) {
 }
 
 fn key_mod(h: &mut H, mods: egui::Modifiers, key: egui::Key) {
+    spend(|b| b.keys += 1);
     h.key_press_modifiers(mods, key);
     h.run_steps(3);
     rest(h);
@@ -370,6 +399,7 @@ fn key_mod(h: &mut H, mods: egui::Modifiers, key: egui::Key) {
 
 /// Types `text` as a keyboard does: one text event, into whatever has the keyboard focus.
 fn type_text(h: &mut H, text: &str) {
+    spend(|b| b.typed += text.chars().count());
     h.event(egui::Event::Text(text.to_string()));
     h.run_steps(3);
     rest(h);
@@ -457,6 +487,7 @@ fn click_at(h: &mut H, at: egui::Pos2) {
 
 /// One press and release of the primary button at `at`, a frame or two long.
 fn tap(h: &mut H, at: egui::Pos2) {
+    spend(|b| b.clicks += 1);
     h.hover_at(at);
     h.run_steps(2);
     for pressed in [true, false] {
@@ -1945,6 +1976,7 @@ fn drag_squares(
     via: &[(usize, usize)],
     grip: egui::Vec2,
 ) {
+    spend(|b| b.drags += 1);
     let end = via.last().copied().unwrap_or(from);
     scroll_to(h, (from.0 + end.0) / 2, (from.1 + end.1) / 2);
     let at = square(h, from.0, from.1).center() + grip;
@@ -4815,4 +4847,391 @@ fn the_map_editor_catalog_takes_the_row_double_clicked_after_its_search() {
     }
     shot_at(&mut h, "catalog-taken", &[(1920.0, 1080.0)]);
     assert!(missed.is_empty(), "the brush did not become {missed:?}");
+}
+
+/// One picture of the window at 1280x800 for a step of a budget walk, and the inputs spent so far.
+fn step(h: &mut H, name: &str) {
+    rest(h);
+    let b = spent();
+    println!("BUDGET {name}: {b:?}");
+    let Some(dir) = std::env::var_os("SHOT_DIR") else {
+        return;
+    };
+    std::fs::create_dir_all(&dir).unwrap();
+    h.render()
+        .expect("renders")
+        .save(std::path::Path::new(&dir).join(format!("{name}.png")))
+        .unwrap();
+}
+
+/// Types `words` into the search box of the catalog and clicks the row `row`; a box that holds an earlier search has it
+/// selected first, as Ctrl+A does.
+fn catalog_pick(h: &mut H, words: &str, row: &str, earlier: bool) {
+    click_input(h, "Catalog");
+    if earlier {
+        key_mod(h, egui::Modifiers::COMMAND, egui::Key::A);
+    }
+    type_text(h, words);
+    click(h, row);
+}
+
+/// A novice builds a kitchen house from the main menu in Simple mode with the mouse and names alone.
+#[test]
+#[ignore = "requires BN_ENGINE pointing at an engine binary"]
+fn a_novice_builds_a_house_within_forty_clicks() {
+    let dir = std::env::temp_dir().join(format!("bn-budget-house-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let (mut h, _root) = start(&dir);
+    h.set_size(egui::vec2(1280.0, 800.0));
+    rest(&mut h);
+    step(&mut h, "house-00-menu");
+    open_map_editor(&mut h);
+    step(&mut h, "house-01-map-editor");
+    click_beside(&mut h, "New map/Name");
+    type_text(&mut h, "Kitchen house");
+    step(&mut h, "house-02-named");
+    click(&mut h, "Create");
+    wait_kind(&mut h, "editor");
+    step(&mut h, "house-03-created");
+
+    // Walls: a brick wall in hand, a room dragged from corner to corner.
+    catalog_pick(&mut h, "brick wall", "brick wall", false);
+    step(&mut h, "house-04-wall-in-hand");
+    click_tab(&mut h, "Room");
+    step(&mut h, "house-05-room-tool");
+    drag_squares(
+        &mut h,
+        "house-06-room-dragging",
+        (4, 3),
+        &[(18, 14)],
+        egui::Vec2::ZERO,
+    );
+    step(&mut h, "house-06-room-drawn");
+
+    // A door in the south wall: one click on its square.
+    catalog_pick(&mut h, "door", "closed wood door", true);
+    click_tab(&mut h, "Pencil");
+    paint(&mut h, 11, 14);
+    step(&mut h, "house-08-door");
+
+    // The kitchen floor in the north-west corner, a filled rectangle.
+    catalog_pick(&mut h, "linoleum", "linoleum", true);
+    step(&mut h, "house-09-floor-in-hand");
+    click_tab(&mut h, "Filled rectangle");
+    drag_squares(
+        &mut h,
+        "house-10-kitchen-dragging",
+        (5, 4),
+        &[(10, 8)],
+        egui::Vec2::ZERO,
+    );
+    step(&mut h, "house-10-kitchen-floor");
+
+    // A counter along the kitchen's north wall.
+    click_tab(&mut h, "Furniture");
+    catalog_pick(&mut h, "counter", "counter", false);
+    step(&mut h, "house-11-counter-in-hand");
+    click_tab(&mut h, "Line");
+    drag_squares(
+        &mut h,
+        "house-12-counter-dragging",
+        (5, 4),
+        &[(10, 4)],
+        egui::Vec2::ZERO,
+    );
+    step(&mut h, "house-12-counter");
+
+    // Kitchen things on the kitchen's squares: the Placements tool, a drag over them and a click on a row.
+    click_tab(&mut h, "Placements");
+    step(&mut h, "house-13-placements-tool");
+    drag_squares(
+        &mut h,
+        "house-14-placing-dragging",
+        (5, 4),
+        &[(10, 8)],
+        egui::Vec2::ZERO,
+    );
+    step(&mut h, "house-14-kitchen-marked");
+    click_input(&mut h, "Catalog");
+    type_text(&mut h, "kitchen");
+    step(&mut h, "house-15-kitchen-searched");
+    click(&mut h, "Kitchen");
+    step(&mut h, "house-16-kitchen-picked");
+    click_footer(&mut h, "Add Kitchen");
+    step(&mut h, "house-17-kitchen-added");
+
+    // Saved from the File menu.
+    menu(&mut h, "File", "Save");
+    step(&mut h, "house-18-saved");
+    let path = crate::common::live::profile_dir().join("mods/my_mod/kitchen_house.json");
+    let written = std::fs::read_to_string(&path).unwrap();
+    for part in [
+        "\"t_door_c\"",
+        "\"f_counter\"",
+        "\"t_linoleum_gray\"",
+        "\"t_brick_wall\"",
+        "\"item\": \"kitchen\"",
+    ] {
+        assert!(written.contains(part), "{part} missing in {written}");
+    }
+
+    // Left for the main menu and the document opened again from the Editor tab's recent list.
+    click(&mut h, "Exit screen");
+    run_until(&mut h, "the main menu", 300, |h| {
+        h.state().model.menu().is_some() && !h.state().model.busy()
+    });
+    step(&mut h, "house-19-main-menu");
+    click(&mut h, "Editor");
+    step(&mut h, "house-20-editor-tab");
+    click(&mut h, "Kitchen house (My mod)");
+    wait_kind(&mut h, "editor");
+    step(&mut h, "house-21-reopened");
+    let saved: serde_json::Value = serde_json::from_str(&written).unwrap();
+    let rows = saved[0]["object"]["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r.as_str().unwrap().to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        canvas_glyphs(&h),
+        rows,
+        "the reopened canvas is the saved house"
+    );
+
+    // The house is set to appear in towns.
+    open_select(&mut h, "Where it appears");
+    click(&mut h, "In towns");
+    let placement = path.with_file_name("kitchen_house.placement.json");
+    run_until(&mut h, "the placement file", 60, |_| placement.is_file());
+    step(&mut h, "house-22-in-towns");
+    assert!(
+        labels(&h).iter().any(|l| l.contains("In towns")),
+        "{:?}",
+        labels(&h)
+    );
+    println!("PLACEMENT {}", std::fs::read_to_string(&placement).unwrap());
+
+    // Tested in the world.
+    menu(&mut h, "World", "Test");
+    run_until(&mut h, "the map", 120, |h| {
+        !h.state().model.busy() && top(h).as_deref() != Some("editor")
+    });
+    step(&mut h, "house-23-tested");
+    assert!(
+        labels(&h)
+            .iter()
+            .any(|l| l.contains("Location: Kitchen house") || l.contains("Kitchen house")),
+        "{:?}",
+        labels(&h)
+    );
+    let b = spent();
+    println!("TOTAL house: {b:?}");
+    assert!(
+        b.clicks <= 40,
+        "the house took {} clicks, the budget is 40: {b:?}",
+        b.clicks
+    );
+}
+
+/// Clicks the row of the vehicle editor's part list labelled exactly `label`: the list sits between its search box and
+/// its `Parts page` button, where a square or a stack row of the same name is not.
+fn click_part(h: &mut H, label: &str) {
+    let row = |h: &H| {
+        h.root()
+            .children_recursive()
+            .skip_while(|n| {
+                let a = n.accesskit_node();
+                !(a.role() == egui::accesskit::Role::TextInput
+                    && a.label().as_deref() == Some("Parts"))
+            })
+            .take_while(|n| n.accesskit_node().label().as_deref() != Some("Parts page"))
+            .find(|n| {
+                let a = n.accesskit_node();
+                a.role() == egui::accesskit::Role::Button && a.label().as_deref() == Some(label)
+            })
+            .map(|n| n.rect())
+    };
+    let at = click_stable(h, label, row);
+    click_at(h, at.center());
+}
+
+/// One drag on the vehicle canvas from mount `from` to mount `to`, a picture taken at the end of it.
+fn drag_mounts(h: &mut H, shot: &str, from: (i32, i32), to: (i32, i32)) {
+    spend(|b| b.drags += 1);
+    let (a, b) = (mount_at(h, from), mount_at(h, to));
+    h.hover_at(a);
+    h.run_steps(3);
+    let button = |h: &mut H, pos: egui::Pos2, pressed: bool| {
+        h.event(egui::Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: egui::Modifiers::NONE,
+        });
+        h.run_steps(3);
+    };
+    button(h, a, true);
+    for i in 1..=12 {
+        h.hover_at(a + (b - a) * (i as f32 / 12.0));
+        h.run_steps(2);
+    }
+    if let Some(dir) = std::env::var_os("SHOT_DIR") {
+        h.render()
+            .expect("renders")
+            .save(std::path::Path::new(&dir).join(format!("{shot}.png")))
+            .unwrap();
+    }
+    button(h, b, false);
+    rest(h);
+}
+
+/// Where the mount (`x`, `y`) of the vehicle canvas is drawn, counted from the first part: the squares beside the parts
+/// are drawn as buttons on the canvas's lattice, and the first part sits on the grid's middle square.
+fn mount_at(h: &H, (x, y): (i32, i32)) -> egui::Pos2 {
+    let top = h.state().model.screens().last().unwrap();
+    let Some(Component::Grid(grid)) = top.root.as_ref().unwrap().find("vehicle:grid") else {
+        panic!("no vehicle:grid");
+    };
+    let first = (
+        grid.cells.iter().map(|c| c.x).min().unwrap(),
+        grid.cells.iter().map(|c| c.y).min().unwrap(),
+    );
+    let squares = h
+        .root()
+        .children_recursive()
+        .filter(|n| n.accesskit_node().role() == egui::accesskit::Role::Button)
+        .filter(|n| n.accesskit_node().bounding_box().is_some())
+        .map(|n| n.rect())
+        .filter(|r| (r.width() - r.height()).abs() < 1.0 && r.width() >= 14.0)
+        .collect::<Vec<_>>();
+    let side = squares[0].width();
+    let min = egui::pos2(
+        squares.iter().map(|r| r.min.x).fold(f32::MAX, f32::min),
+        squares.iter().map(|r| r.min.y).fold(f32::MAX, f32::min),
+    );
+    // The grid's middle square is the mount (0, 0) the editor starts a design on.
+    let cursor = (grid.cols / 2, grid.rows / 2);
+    min + egui::vec2(
+        (cursor.0 as i32 + x - first.0 as i32) as f32 + 0.5,
+        (cursor.1 as i32 + y - first.1 as i32) as f32 + 0.5,
+    ) * side
+}
+
+/// Clicks the mount (`x`, `y`) of the vehicle canvas where it is drawn.
+fn click_mount(h: &mut H, at: (i32, i32)) {
+    let at = mount_at(h, at);
+    click_at(h, at);
+}
+
+/// A novice builds a car from the main menu in Simple mode with the mouse and names alone.
+#[test]
+#[ignore = "requires BN_ENGINE pointing at an engine binary"]
+fn a_novice_builds_a_car_within_twenty_five_clicks() {
+    let dir = std::env::temp_dir().join(format!("bn-budget-car-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let (mut h, _root) = start(&dir);
+    h.set_size(egui::vec2(1280.0, 800.0));
+    rest(&mut h);
+    step(&mut h, "car-00-menu");
+    click(&mut h, "Editor");
+    click(&mut h, "Vehicle editor");
+    wait_kind(&mut h, "vehicle_editor");
+    step(&mut h, "car-01-vehicle-editor");
+    click_footer(&mut h, "New vehicle");
+    step(&mut h, "car-02-new-vehicle");
+    type_text(&mut h, "Family car");
+    step(&mut h, "car-03-named");
+    click_footer(&mut h, "OK");
+    wait_kind(&mut h, "vehicle_editor");
+    step(&mut h, "car-04-created");
+
+    // The frame in hand, a filled rectangle of it five squares by three about the first one.
+    click_part(&mut h, "frame");
+    click(&mut h, "Filled rectangle");
+    step(&mut h, "car-05-frame-in-hand");
+    drag_mounts(&mut h, "car-06-frame-dragging", (-2, -1), (2, 1));
+    step(&mut h, "car-06-frame-drawn");
+
+    click_button(&mut h, "Add a seat with controls");
+    step(&mut h, "car-07-seat-and-controls");
+    click_button(&mut h, "Add wheels at the corners");
+    step(&mut h, "car-08-wheels");
+    click_button(&mut h, "Choose an engine");
+    step(&mut h, "car-09-engines");
+    click_part(&mut h, "Inline-4 engine");
+    click_mount(&mut h, (1, 0));
+    step(&mut h, "car-10-engine-placed");
+    click_tab(&mut h, "Fuel & batteries");
+    step(&mut h, "car-11-fuel-tab");
+    click_input(&mut h, "Parts");
+    type_text(&mut h, "tank");
+    step(&mut h, "car-12-tank-searched");
+    click_part(&mut h, "vehicle tank (60L)");
+    click_mount(&mut h, (-1, 0));
+    step(&mut h, "car-13-tank-placed");
+    click_button(&mut h, "Add a battery");
+    step(&mut h, "car-14-battery");
+
+    menu(&mut h, "File", "Save");
+    step(&mut h, "car-16-saved");
+    let path = crate::common::live::profile_dir().join("mods/my_mod/family_car.json");
+    let saved: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    let mounts = saved[0]["parts"].as_array().unwrap();
+    let mut squares = mounts
+        .iter()
+        .map(|m| (m["x"].as_i64().unwrap(), m["y"].as_i64().unwrap()))
+        .collect::<Vec<_>>();
+    squares.sort();
+    assert_eq!(
+        squares,
+        (-2..=2)
+            .flat_map(|x| (-1..=1).map(move |y| (x, y)))
+            .collect::<Vec<_>>(),
+        "five by three"
+    );
+    let parts = mounts
+        .iter()
+        .flat_map(|m| m["parts"].as_array().unwrap())
+        .map(|p| {
+            p.as_str()
+                .or_else(|| p["part"].as_str())
+                .unwrap()
+                .to_string()
+        })
+        .collect::<Vec<_>>();
+    let count = |prefix: &str| parts.iter().filter(|p| p.starts_with(prefix)).count();
+    assert_eq!(
+        [
+            count("frame"),
+            count("seat"),
+            count("controls"),
+            count("engine_inline4"),
+            count("tank"),
+            count("wheel_wide")
+        ],
+        [15, 1, 1, 1, 1, 4],
+        "{parts:?}"
+    );
+
+    click_button(&mut h, "Test drive");
+    run_until(&mut h, "the map", 120, |h| {
+        !h.state().model.busy() && top(h).as_deref() != Some("vehicle_editor")
+    });
+    step(&mut h, "car-17-test-drive");
+    assert!(
+        labels(&h)
+            .iter()
+            .any(|l| l.contains("You take control of the Family car")),
+        "{:?}",
+        labels(&h)
+    );
+    let b = spent();
+    println!("TOTAL car: {b:?}");
+    assert!(
+        b.clicks <= 25,
+        "the car took {} clicks, the budget is 25: {b:?}",
+        b.clicks
+    );
 }
