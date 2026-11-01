@@ -294,8 +294,15 @@ pub(crate) fn reveal_rect(h: &mut H, what: &str, rect_of: impl Fn(&H) -> Option<
         }
     }
     let seen = rect_of(h);
+    if let Some(dir) = std::env::var_os("SHOT_DIR") {
+        let name = what.replace(|c: char| !c.is_alphanumeric(), "-");
+        let _ = h
+            .render()
+            .map(|i| i.save(std::path::Path::new(&dir).join(format!("lost-{name}.png"))));
+    }
     panic!(
-        "{what} is never brought into view by the wheel; last at {seen:?} in {size:?} among {:#?}",
+        "{what} is never brought into view by the wheel; last at {seen:?} shown {:?} in {size:?} among {:#?}",
+        seen.and_then(|r| shown(h, r)),
         labels(h)
     );
 }
@@ -543,7 +550,35 @@ fn glyph(h: &H, x: usize, y: usize) -> Option<char> {
 
 /// Shows the settings modders use, the paths and ids among them, from the View menu.
 fn show_advanced(h: &mut H) {
-    menu(h, "View", "Show advanced settings");
+    press(h, "View");
+    h.run_steps(4);
+    if find(h, "Hide advanced settings").is_some() {
+        press(h, "View");
+        rest(h);
+    } else {
+        click_menu_item(h, "View", "Show advanced settings");
+    }
+}
+
+/// Whether the legend's Mapping form is open: its button is drawn.
+fn mapping_open(h: &H) -> bool {
+    button(h, "Set mapping").is_some()
+}
+
+/// Opens the Mapping form of the legend when it is folded.
+fn open_mapping(h: &mut H) {
+    if !mapping_open(h) {
+        click(h, "Mapping");
+        rest(h);
+    }
+}
+
+/// Folds the Mapping form, which leaves a short window's catalog the room to show its rows.
+fn fold_mapping(h: &mut H) {
+    if mapping_open(h) {
+        click(h, "Mapping");
+        rest(h);
+    }
 }
 
 /// A new map `name` in a new mod of the profile's mods directory, `mod/name` or else named as the map, made from
@@ -556,6 +591,50 @@ fn create_mapgen(h: &mut H, name: &str) -> std::path::PathBuf {
         Some(_) => "New map",
         None => "New file",
     };
+    // Advanced mode asks for the file's path, not names.
+    let asks_path = h
+        .root()
+        .children_recursive()
+        .all(|n| n.accesskit_node().label().as_deref() != Some("Name"));
+    if asks_path {
+        // A document open folds the form under its heading, `New mapgen file` in Advanced mode.
+        let heading = ["New mapgen file", "New file"]
+            .into_iter()
+            .find(|l| {
+                find(h, l).is_some_and(|_| {
+                    h.root()
+                        .children_recursive()
+                        .any(|n| n.accesskit_node().label().as_deref() == Some(*l))
+                })
+            })
+            .unwrap_or(heading);
+        let drawn = |h: &H| {
+            h.root()
+                .children_recursive()
+                .any(|n| n.accesskit_node().label().as_deref() == Some("Path"))
+        };
+        fold_mapping(h);
+        // The catalog folded leaves the form below it the room of its fields.
+        if h.root()
+            .children_recursive()
+            .any(|n| n.accesskit_node().role() == egui::accesskit::Role::Tab)
+        {
+            click(h, "Catalog");
+            rest(h);
+        }
+        if !drawn(h) {
+            click(h, heading);
+            rest(h);
+        }
+        click_beside(h, &format!("{heading}/Path"));
+        replace_text(h, &path.to_string_lossy());
+        click(h, "Create");
+        if find(h, "Continue").is_some() {
+            click(h, "Continue");
+        }
+        wait_kind(h, "editor");
+        return path;
+    }
     click_beside(h, &format!("{heading}/Name"));
     replace_text(h, name);
     // A later map goes in the mod made last, whose select's label is its name; New mod asks for another.
@@ -644,6 +723,7 @@ fn the_map_editor_paints_places_furniture_undoes_previews_saves_and_reopens() {
     open_map_editor(&mut h);
     shot(&mut h, "map-1-editor");
     let path = create_mapgen(&mut h, "zz_walk");
+    show_advanced(&mut h);
     let blank = canvas_glyphs(&h);
     assert_eq!((blank.len(), blank[0].chars().count()), (24, 24));
     shot(&mut h, "map-2-created");
@@ -652,6 +732,7 @@ fn the_map_editor_paints_places_furniture_undoes_previews_saves_and_reopens() {
     click(&mut h, "Terrain");
     double_click(&mut h, "brick wall");
     assert_eq!(field(&h, "editor:mapping", "value"), "t_brick_wall");
+    open_mapping(&mut h);
     click_beside(&mut h, "Symbol");
     replace_text(&mut h, "#");
     key(&mut h, egui::Key::Enter);
@@ -689,17 +770,20 @@ fn the_map_editor_paints_places_furniture_undoes_previews_saves_and_reopens() {
     let floor = catalog["rows"][0]["label"].as_str().unwrap().to_string();
     double_click(&mut h, &floor);
     assert_eq!(field(&h, "editor:mapping", "layer"), "terrain");
+    open_mapping(&mut h);
     click_beside(&mut h, "Symbol");
     replace_text(&mut h, "C");
     key(&mut h, egui::Key::Enter);
     click(&mut h, "Set mapping");
     click_tab(&mut h, "Furniture");
+    fold_mapping(&mut h);
     let top = h.state().model.screens().last().unwrap();
     let catalog = serde_json::to_value(top.root.as_ref().unwrap().find("editor:catalog")).unwrap();
     let name = catalog["rows"][0]["label"].as_str().unwrap().to_string();
     double_click(&mut h, &name);
     assert_eq!(field(&h, "editor:mapping", "layer"), "furniture");
     let furniture = field(&h, "editor:mapping", "value");
+    open_mapping(&mut h);
     click_beside(&mut h, "Symbol");
     replace_text(&mut h, "C");
     key(&mut h, egui::Key::Enter);
@@ -1127,6 +1211,7 @@ fn the_map_editor_creates_a_palette_maps_a_symbol_and_saves_it() {
     double_click(&mut h, "brick wall");
     assert_eq!(field(&h, "editor:mapping", "value"), "t_brick_wall");
     shot_at(&mut h, "pal-5b-picked", &sizes);
+    open_mapping(&mut h);
     click_beside(&mut h, "Symbol");
     replace_text(&mut h, "#");
     key(&mut h, egui::Key::Enter);
@@ -2144,8 +2229,10 @@ fn the_map_editor_places_an_overmap_special_in_the_world_and_tests_it_there() {
 
 /// A wall symbol `#` mapped to the catalog's brick wall in the open mapgen, as the first walk maps it.
 fn map_wall(h: &mut H) {
+    show_advanced(h);
     click(h, "Terrain");
     double_click(h, "brick wall");
+    open_mapping(h);
     click_beside(h, "Symbol");
     replace_text(h, "#");
     key(h, egui::Key::Enter);
@@ -2193,6 +2280,9 @@ fn the_map_editor_copies_and_cuts_between_two_open_documents_and_pastes() {
     shot_at(&mut h, "xdoc-1-a-copied", &sizes);
 
     // Document B is another file, made in the same editor: the clipboard stays, and B maps no `#` of its own.
+    // The pictures leave the window short; the form of a new file needs the tall one.
+    h.set_size(egui::vec2(1920.0, 1080.0));
+    settle(&mut h);
     let b = create_mapgen(&mut h, "zz_xdoc_b");
     assert_ne!(a, b);
     dump(&h, "B created");
@@ -2925,6 +3015,11 @@ fn shot_both(h: &mut H, name: &str) {
 fn menu(h: &mut H, group: &str, item: &str) {
     press(h, group);
     h.run_steps(4);
+    click_menu_item(h, group, item);
+}
+
+/// Clicks `item` of the open menu `group`.
+fn click_menu_item(h: &mut H, group: &str, item: &str) {
     let under = find(h, group).unwrap().left_bottom();
     let at = h
         .root()
@@ -3189,6 +3284,17 @@ fn the_map_editor_draws_by_the_keyboard_and_opens_its_keys_with_f1() {
     create_mapgen(&mut h, "zz_keys");
     map_wall(&mut h);
     click_tab(&mut h, "Pencil");
+    // A click leaves no focus in the window: the tab the walk chose holds it, as the keyboard would have put it.
+    let tab = h
+        .root()
+        .children_recursive()
+        .find(|n| {
+            let a = n.accesskit_node();
+            a.role() == egui::accesskit::Role::Tab && a.label().as_deref() == Some("Pencil")
+        })
+        .expect("the pencil tab");
+    tab.focus();
+    h.run_steps(3);
 
     let mut presses = 0;
     while !focused_on(&h, "Canvas") {
@@ -3602,8 +3708,10 @@ fn the_map_editor_answers_the_audits_clicks_keys_and_refusals() {
     rest(&mut h);
     shot(&mut h, "m1-open");
     create_mapgen(&mut h, "audit_fixes");
+    show_advanced(&mut h);
     rest(&mut h);
     // A wall mapped by typing its symbol and terrain id into the mapping form.
+    open_mapping(&mut h);
     click_beside(&mut h, "Mapping/Symbol");
     replace_text(&mut h, "#");
     key(&mut h, egui::Key::Enter);
@@ -3623,6 +3731,11 @@ fn the_map_editor_answers_the_audits_clicks_keys_and_refusals() {
         engine == shown,
         format!("map history: engine chose {engine:?}, drawn chosen {shown:?}"),
     );
+    // The older step has the paint ahead of it: redone, nothing is left to redo.
+    for _ in 0..2 {
+        key_mod(&mut h, egui::Modifiers::CTRL, egui::Key::Y);
+    }
+    rest(&mut h);
     let why = denial(&h, "editor:redo");
     press(&mut h, "Edit");
     rest(&mut h);
@@ -3973,6 +4086,7 @@ fn the_editors_show_mod_folders_required_marks_the_leave_prompt_and_the_fuel_pic
 /// Paints one square of the open mapgen so the document counts as edited.
 fn tool_tab_click(h: &mut H) {
     double_click(h, "adobe wall");
+    open_mapping(h);
     click_beside(h, "Symbol");
     replace_text(h, "#");
     key(h, egui::Key::Enter);
