@@ -294,8 +294,15 @@ pub(crate) fn reveal_rect(h: &mut H, what: &str, rect_of: impl Fn(&H) -> Option<
         }
     }
     let seen = rect_of(h);
+    if let Some(dir) = std::env::var_os("SHOT_DIR") {
+        let name = what.replace(|c: char| !c.is_alphanumeric(), "-");
+        let _ = h
+            .render()
+            .map(|i| i.save(std::path::Path::new(&dir).join(format!("lost-{name}.png"))));
+    }
     panic!(
-        "{what} is never brought into view by the wheel; last at {seen:?} in {size:?} among {:#?}",
+        "{what} is never brought into view by the wheel; last at {seen:?} shown {:?} in {size:?} among {:#?}",
+        seen.and_then(|r| shown(h, r)),
         labels(h)
     );
 }
@@ -470,6 +477,32 @@ fn open_map_editor(h: &mut H) {
     wait_kind(h, "editor");
 }
 
+/// The map editor with Advanced mode on. The engine ignores `Show advanced settings` on the map editor's start page,
+/// where no document is open, so the choice, shared by both editors, is made in the vehicle editor first.
+fn open_advanced_map_editor(h: &mut H) {
+    click(h, "Editor");
+    click(h, "Vehicle editor");
+    wait_kind(h, "vehicle_editor");
+    rest(h);
+    show_advanced(h);
+    key(h, egui::Key::Escape);
+    rest(h);
+    open_map_editor(h);
+}
+
+/// The vehicle editor's World tab, whose section Vehicles is folded while a design is open.
+fn open_world_tab(h: &mut H) {
+    let drawn = h.root().children_recursive().any(|n| {
+        let a = n.accesskit_node();
+        a.role() == egui::accesskit::Role::Tab && a.label().as_deref() == Some("World")
+    });
+    if !drawn {
+        click(h, "Vehicles");
+        rest(h);
+    }
+    click_tab(h, "World");
+}
+
 /// Clicks the tab labelled `label` and waits until it is the selected one.
 fn click_tab(h: &mut H, label: &str) {
     let in_bar = |h: &H| {
@@ -543,7 +576,98 @@ fn glyph(h: &H, x: usize, y: usize) -> Option<char> {
 
 /// Shows the settings modders use, the paths and ids among them, from the View menu.
 fn show_advanced(h: &mut H) {
-    menu(h, "View", "Show advanced settings");
+    press(h, "View");
+    h.run_steps(4);
+    if find(h, "Hide advanced settings").is_some() {
+        press(h, "View");
+        rest(h);
+    } else {
+        click_menu_item(h, "View", "Show advanced settings");
+    }
+}
+
+/// Whether the legend's Mapping form is open: its button is drawn.
+fn mapping_open(h: &H) -> bool {
+    button(h, "Set mapping").is_some()
+}
+
+/// Whether the canvas square (`x`, `y`) holds a brick wall, by its label: a stroke of terrain leaves the furniture of a
+/// square, so its glyph is the symbol of both.
+fn walled(h: &H, x: u32, y: u32) -> bool {
+    canvas_grid(h)
+        .2
+        .iter()
+        .any(|c| (c.0, c.1) == (x, y) && c.3.starts_with("brick wall"))
+}
+
+/// Opens the Mapping form of the legend when it is folded.
+fn open_mapping(h: &mut H) {
+    if !mapping_open(h) {
+        click(h, "Mapping");
+        rest(h);
+    }
+}
+
+/// Folds the Mapping form, which leaves a short window's catalog the room to show its rows.
+fn fold_mapping(h: &mut H) {
+    if mapping_open(h) {
+        click(h, "Mapping");
+        rest(h);
+    }
+}
+
+/// Whether the catalog of the legend column is open: its tabs are drawn.
+fn catalog_open(h: &H) -> bool {
+    h.root().children_recursive().any(|n| {
+        let a = n.accesskit_node();
+        a.role() == egui::accesskit::Role::Tab && a.label().as_deref() == Some("Terrain")
+    })
+}
+
+/// Folds the catalog when it is open.
+fn fold_catalog(h: &mut H) {
+    if catalog_open(h) {
+        click(h, "Catalog");
+        rest(h);
+    }
+}
+
+/// Opens the catalog when it is folded.
+fn open_catalog(h: &mut H) {
+    if !catalog_open(h) {
+        click(h, "Catalog");
+        rest(h);
+    }
+}
+
+/// The form of a new file in Advanced mode, opened, and the heading it is under: a document open folds it under
+/// `New mapgen file`, the start page heads it `New file`.
+fn open_new_file_form(h: &mut H) -> &'static str {
+    let exact = |h: &H, l: &str| {
+        h.root()
+            .children_recursive()
+            .any(|n| n.accesskit_node().label().as_deref() == Some(l))
+    };
+    let heading = ["New mapgen file", "New file"]
+        .into_iter()
+        .find(|l| exact(h, l))
+        .unwrap_or("New file");
+    fold_mapping(h);
+    // The catalog folded leaves the form below it the room of its fields.
+    fold_catalog(h);
+    if !exact(h, "Path") {
+        click(h, heading);
+        rest(h);
+    }
+    heading
+}
+
+/// Types `count` into the Export form's box labelled `label`, `Width` or `Height`.
+fn set_export_size(h: &mut H, label: &str, count: &str) {
+    click_beside(h, label);
+    replace_text(h, count);
+    key(h, egui::Key::Enter);
+    rest(h);
 }
 
 /// A new map `name` in a new mod of the profile's mods directory, `mod/name` or else named as the map, made from
@@ -556,6 +680,22 @@ fn create_mapgen(h: &mut H, name: &str) -> std::path::PathBuf {
         Some(_) => "New map",
         None => "New file",
     };
+    // Advanced mode asks for the file's path, not names.
+    let asks_path = h
+        .root()
+        .children_recursive()
+        .all(|n| n.accesskit_node().label().as_deref() != Some("Name"));
+    if asks_path {
+        let heading = open_new_file_form(h);
+        click_beside(h, &format!("{heading}/Path"));
+        replace_text(h, &path.to_string_lossy());
+        click(h, "Create");
+        if find(h, "Continue").is_some() {
+            click(h, "Continue");
+        }
+        wait_kind(h, "editor");
+        return path;
+    }
     click_beside(h, &format!("{heading}/Name"));
     replace_text(h, name);
     // A later map goes in the mod made last, whose select's label is its name; New mod asks for another.
@@ -696,6 +836,7 @@ fn the_map_editor_paints_places_furniture_undoes_previews_saves_and_reopens() {
     open_map_editor(&mut h);
     shot(&mut h, "map-1-editor");
     let path = create_mapgen(&mut h, "zz_walk");
+    show_advanced(&mut h);
     let blank = canvas_glyphs(&h);
     assert_eq!((blank.len(), blank[0].chars().count()), (24, 24));
     shot(&mut h, "map-2-created");
@@ -704,6 +845,7 @@ fn the_map_editor_paints_places_furniture_undoes_previews_saves_and_reopens() {
     click(&mut h, "Terrain");
     double_click(&mut h, "brick wall");
     assert_eq!(field(&h, "editor:mapping", "value"), "t_brick_wall");
+    open_mapping(&mut h);
     click_beside(&mut h, "Symbol");
     replace_text(&mut h, "#");
     key(&mut h, egui::Key::Enter);
@@ -741,17 +883,20 @@ fn the_map_editor_paints_places_furniture_undoes_previews_saves_and_reopens() {
     let floor = catalog["rows"][0]["label"].as_str().unwrap().to_string();
     double_click(&mut h, &floor);
     assert_eq!(field(&h, "editor:mapping", "layer"), "terrain");
+    open_mapping(&mut h);
     click_beside(&mut h, "Symbol");
     replace_text(&mut h, "C");
     key(&mut h, egui::Key::Enter);
     click(&mut h, "Set mapping");
     click_tab(&mut h, "Furniture");
+    fold_mapping(&mut h);
     let top = h.state().model.screens().last().unwrap();
     let catalog = serde_json::to_value(top.root.as_ref().unwrap().find("editor:catalog")).unwrap();
     let name = catalog["rows"][0]["label"].as_str().unwrap().to_string();
     double_click(&mut h, &name);
     assert_eq!(field(&h, "editor:mapping", "layer"), "furniture");
     let furniture = field(&h, "editor:mapping", "value");
+    open_mapping(&mut h);
     click_beside(&mut h, "Symbol");
     replace_text(&mut h, "C");
     key(&mut h, egui::Key::Enter);
@@ -847,9 +992,12 @@ fn the_vehicle_editor_prototypes_list_keeps_its_id_column_clear_of_the_scroll_ba
     click(&mut h, "Vehicle editor");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
+    show_advanced(&mut h);
     // Opened, the prototype takes the right of the window and the list is left a narrow pane.
     double_click(&mut h, "Offroad Car");
     wait_kind(&mut h, "vehicle_editor");
+    rest(&mut h);
+    click(&mut h, "Vehicles");
     rest(&mut h);
     shot_at(
         &mut h,
@@ -895,6 +1043,7 @@ fn the_vehicle_editor_opens_a_prototype_installs_and_saves_a_mod_file() {
     click(&mut h, "Vehicle editor");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
+    show_advanced(&mut h);
     shot(&mut h, "veh-1-editor");
     click_input(&mut h, "Vehicles");
     rest(&mut h);
@@ -918,9 +1067,8 @@ fn the_vehicle_editor_opens_a_prototype_installs_and_saves_a_mod_file() {
     click_tab(&mut h, "Part settings");
     rest(&mut h);
     shot(&mut h, "veh-8-part-tab");
-    click_beside(&mut h, "Fuel");
-    replace_text(&mut h, "diesel");
-    key(&mut h, egui::Key::Enter);
+    open_select(&mut h, "Fuel");
+    click(&mut h, "diesel");
     rest(&mut h);
     shot(&mut h, "veh-9-fuel");
 
@@ -962,7 +1110,7 @@ fn the_vehicle_editor_opens_a_prototype_installs_and_saves_a_mod_file() {
     shot(&mut h, "veh-16-renamed");
 
     // Saved as a mod file: the engine only writes under the game's data or a mod.
-    let path = crate::common::live::profile_dir().join("mods/zz_vehicle.json");
+    let path = crate::common::live::profile_dir().join("mods/zz_vehicle/zz_vehicle.json");
     click_footer(&mut h, "Save as");
     rest(&mut h);
     shot(&mut h, "veh-17-save-as-asks");
@@ -971,13 +1119,11 @@ fn the_vehicle_editor_opens_a_prototype_installs_and_saves_a_mod_file() {
     rest(&mut h);
     shot(&mut h, "veh-18-saved");
 
-    // The edited design spawned beside the avatar, and looked at on the map the editor leaves for.
-    click_footer(&mut h, "Spawn");
-    run_until(&mut h, "the map", 60, |h| {
-        !h.state().model.busy() && top(h).as_deref() != Some("vehicle_editor")
-    });
+    // The edited design spawned beside the avatar; its diesel tank is not a drive the engine is ready for, so Spawn
+    // stays in the editor.
+    menu(&mut h, "World", "Spawn");
     rest(&mut h);
-    shot(&mut h, "veh-20-spawned-on-map");
+    shot(&mut h, "veh-20-spawned");
     let saved = std::fs::read_to_string(&path).unwrap_or_default();
     assert!(
         saved.contains("Walker Car") && saved.contains("diesel"),
@@ -997,6 +1143,7 @@ fn the_vehicle_editor_sets_the_ammunition_of_a_turret_from_the_part_tab() {
     click(&mut h, "Vehicle editor");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
+    show_advanced(&mut h);
     click_input(&mut h, "Vehicles");
     type_text(&mut h, "armored_car");
     key(&mut h, egui::Key::Enter);
@@ -1030,7 +1177,7 @@ fn the_vehicle_editor_sets_the_ammunition_of_a_turret_from_the_part_tab() {
     shot(&mut h, "turret-3-part-tab-after");
 
     // Saved as a mod file, where the turret's part entry carries what was typed.
-    let path = crate::common::live::profile_dir().join("mods/zz_turret.json");
+    let path = crate::common::live::profile_dir().join("mods/zz_turret/zz_turret.json");
     click_footer(&mut h, "Save as");
     type_text(&mut h, &path.to_string_lossy());
     key(&mut h, egui::Key::Enter);
@@ -1142,19 +1289,18 @@ fn the_map_editor_creates_a_palette_maps_a_symbol_and_saves_it() {
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1290.0, 830.0));
     rest(&mut h);
-    open_map_editor(&mut h);
-    show_advanced(&mut h);
+    open_advanced_map_editor(&mut h);
     shot_at(&mut h, "pal-1-form", &sizes);
     // The kind select, opened by a click; its third option names the palette and relabels the id field.
-    click(&mut h, "Mapgen");
+    open_select(&mut h, "Kind");
     shot_at(&mut h, "pal-2-kinds", &sizes);
     click(&mut h, "Palette");
     assert!(find(&h, "Palette id").is_some(), "{:?}", labels(&h));
-    let path = crate::common::live::profile_dir().join("mods/zz_palette.json");
-    click_beside(&mut h, "New file/Path");
-    type_text(&mut h, &path.to_string_lossy());
+    let path = crate::common::live::profile_dir().join("mods/zz_palette/zz_palette.json");
+    click_beside(&mut h, "New mapgen file/Path");
+    replace_text(&mut h, &path.to_string_lossy());
     click_beside(&mut h, "Palette id");
-    type_text(&mut h, "zz_walk_palette");
+    replace_text(&mut h, "zz_walk_palette");
     shot_at(&mut h, "pal-3-form-filled", &sizes);
     click(&mut h, "Create");
     if find(&h, "Continue").is_some() {
@@ -1179,6 +1325,7 @@ fn the_map_editor_creates_a_palette_maps_a_symbol_and_saves_it() {
     double_click(&mut h, "brick wall");
     assert_eq!(field(&h, "editor:mapping", "value"), "t_brick_wall");
     shot_at(&mut h, "pal-5b-picked", &sizes);
+    open_mapping(&mut h);
     click_beside(&mut h, "Symbol");
     replace_text(&mut h, "#");
     key(&mut h, egui::Key::Enter);
@@ -1330,7 +1477,7 @@ fn the_map_editor_exports_two_squares_stamps_pasted_mapgen_and_takes_it_back() {
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1280.0, 800.0));
     rest(&mut h);
-    open_map_editor(&mut h);
+    open_advanced_map_editor(&mut h);
     shot_at(&mut h, "imp-1-editor", &sizes);
     dump(&h, "the map editor");
     let unstamp_enabled = |h: &H| {
@@ -1343,18 +1490,23 @@ fn the_map_editor_exports_two_squares_stamps_pasted_mapgen_and_takes_it_back() {
     };
     assert_eq!(unstamp_enabled(&h), Some(false));
 
-    // The export is two squares wide: the count prompt takes its digit and OK.
-    click_footer(&mut h, "Export width");
+    // The export is two squares wide: the Export form's width box takes its digit and keeps it.
     shot_at(&mut h, "imp-2-width-asks", &sizes);
-    replace_text(&mut h, "2");
+    set_export_size(&mut h, "Width", "2");
     shot_at(&mut h, "imp-3-width-typed", &sizes);
-    click(&mut h, "OK");
-    click_footer(&mut h, "Export width");
+    let width = h
+        .root()
+        .children_recursive()
+        .find(|n| {
+            let a = n.accesskit_node();
+            a.role() == egui::accesskit::Role::TextInput && a.label().as_deref() == Some("Width")
+        })
+        .and_then(|n| n.accesskit_node().value().map(|v| v.to_string()));
+    assert_eq!(width.as_deref(), Some("2"));
     shot_at(&mut h, "imp-4-width-kept", &sizes);
-    click(&mut h, "Stay");
 
     // Exported to a new mod file, whose first entry names the avatar's overmap terrain.
-    let path = crate::common::live::profile_dir().join("mods/zz_export.json");
+    let path = crate::common::live::profile_dir().join("mods/zz_export/zz_export.json");
     click_footer(&mut h, "Export mapgen here");
     type_text(&mut h, &path.to_string_lossy());
     shot_at(&mut h, "imp-5-path", &sizes);
@@ -1376,6 +1528,16 @@ fn the_map_editor_exports_two_squares_stamps_pasted_mapgen_and_takes_it_back() {
             .filter_map(|n| n.accesskit_node().value().map(|v| v.to_string()))
             .find(|v| v.contains("om_terrain"))
     };
+    fold_catalog(&mut h);
+    // The JSON form folded leaves the stamp form below it the room.
+    click(&mut h, "JSON value");
+    rest(&mut h);
+    click(&mut h, "Export");
+    rest(&mut h);
+    if find(&h, "Mapgen to stamp").is_none() {
+        click(&mut h, "Stamp mapgen text");
+        rest(&mut h);
+    }
     click_beside(&mut h, "Mapgen to stamp");
     h.event(egui::Event::Paste(exported.clone()));
     h.run_steps(3);
@@ -2017,7 +2179,7 @@ fn the_map_editor_draws_and_erases_the_squares_of_an_overmap_special_and_saves_t
     rest(&mut h);
     shot_at(&mut h, "sd-3-catalog", &sizes);
     dump(&h, "catalog filtered");
-    double_click(&mut h, "forest_thick");
+    double_click(&mut h, "(forest_thick)");
     println!("DOC after pick: {}", document(&h));
     assert!(document(&h).contains("forest_thick"), "{}", document(&h));
     shot_at(&mut h, "sd-4-picked", &sizes);
@@ -2025,7 +2187,10 @@ fn the_map_editor_draws_and_erases_the_squares_of_an_overmap_special_and_saves_t
     // A drag from the field into the room beside it, one stroke.
     let anchor_of = |h: &H| {
         let (_, _, cells) = canvas_grid(h);
-        let house = cells.iter().find(|c| c.3 == "house").expect("a house");
+        let house = cells
+            .iter()
+            .find(|c| c.3.starts_with("house"))
+            .unwrap_or_else(|| panic!("a house in {cells:?}"));
         (house.0, house.1)
     };
     let at = |h: &H, x: u32, y: u32| {
@@ -2064,7 +2229,7 @@ fn the_map_editor_draws_and_erases_the_squares_of_an_overmap_special_and_saves_t
     assert!(
         forests(&drawn)
             .iter()
-            .all(|l| !l.is_empty() && l != "field"),
+            .all(|l| !l.is_empty() && !l.starts_with("field")),
         "{drawn:?}"
     );
 
@@ -2094,7 +2259,10 @@ fn the_map_editor_draws_and_erases_the_squares_of_an_overmap_special_and_saves_t
     shot_at(&mut h, "sd-7-erased", &sizes);
     let (_, _, erased) = canvas_grid(&h);
     println!("after erase {erased:?}");
-    assert!(erased.iter().all(|c| c.3 != "house"), "{erased:?}");
+    assert!(
+        erased.iter().all(|c| !c.3.starts_with("house")),
+        "{erased:?}"
+    );
 
     // Saved, the file holds the forest squares and not the house.
     key_mod(&mut h, egui::Modifiers::CTRL, egui::Key::S);
@@ -2196,8 +2364,11 @@ fn the_map_editor_places_an_overmap_special_in_the_world_and_tests_it_there() {
 
 /// A wall symbol `#` mapped to the catalog's brick wall in the open mapgen, as the first walk maps it.
 fn map_wall(h: &mut H) {
+    show_advanced(h);
+    open_catalog(h);
     click(h, "Terrain");
     double_click(h, "brick wall");
+    open_mapping(h);
     click_beside(h, "Symbol");
     replace_text(h, "#");
     key(h, egui::Key::Enter);
@@ -2245,6 +2416,9 @@ fn the_map_editor_copies_and_cuts_between_two_open_documents_and_pastes() {
     shot_at(&mut h, "xdoc-1-a-copied", &sizes);
 
     // Document B is another file, made in the same editor: the clipboard stays, and B maps no `#` of its own.
+    // The pictures leave the window short; the form of a new file needs the tall one.
+    h.set_size(egui::vec2(1920.0, 1080.0));
+    settle(&mut h);
     let b = create_mapgen(&mut h, "zz_xdoc_b");
     assert_ne!(a, b);
     dump(&h, "B created");
@@ -2318,15 +2492,14 @@ fn the_map_editor_makes_a_nested_chunk_and_moves_a_legend_into_a_palette() {
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1280.0, 800.0));
     rest(&mut h);
-    open_map_editor(&mut h);
-    show_advanced(&mut h);
+    open_advanced_map_editor(&mut h);
 
     // The form's kind select names a nested chunk, relabels the id field and sizes the chunk.
-    click(&mut h, "Mapgen");
+    open_select(&mut h, "Kind");
     click(&mut h, "Nested chunk");
     assert!(find(&h, "Chunk id").is_some(), "{:?}", labels(&h));
-    let nested = crate::common::live::profile_dir().join("mods/zz_nested.json");
-    click_beside(&mut h, "New file/Path");
+    let nested = crate::common::live::profile_dir().join("mods/zz_nested/zz_nested.json");
+    click_beside(&mut h, "New mapgen file/Path");
     replace_text(&mut h, &nested.to_string_lossy());
     click_beside(&mut h, "Chunk id");
     replace_text(&mut h, "zz_walk_chunk");
@@ -2349,7 +2522,8 @@ fn the_map_editor_makes_a_nested_chunk_and_moves_a_legend_into_a_palette() {
     );
 
     // A mapgen with a wall symbol of its own, whose legend moves into a palette the mapgen then names.
-    click(&mut h, "Nested chunk");
+    open_new_file_form(&mut h);
+    open_select(&mut h, "Kind");
     click(&mut h, "Mapgen");
     let path = create_mapgen(&mut h, "zz_extract");
     map_wall(&mut h);
@@ -2416,7 +2590,7 @@ fn the_toolbar_offers_the_map_editor_in_game_only_with_the_debug_trait() {
     click(&mut h, "Map Editor");
     shot_at(&mut h, "ig-2-denied", &sizes);
     assert!(
-        find(&h, "You need the Debug Editor trait.").is_some(),
+        find(&h, "You need the Debug Editor trait").is_some(),
         "{:?}",
         labels(&h)
     );
@@ -2548,7 +2722,7 @@ fn the_vehicle_editor_turns_a_preview_reloads_a_file_and_asks_before_leaving() {
     double_click(&mut h, "Bicycle");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
-    let path = crate::common::live::profile_dir().join("mods/zz_veh_reload.json");
+    let path = crate::common::live::profile_dir().join("mods/zz_veh_reload/zz_veh_reload.json");
     click_footer(&mut h, "Save as");
     type_text(&mut h, &path.to_string_lossy());
     key(&mut h, egui::Key::Enter);
@@ -2676,28 +2850,20 @@ fn the_map_editor_exports_a_spawned_vehicle_as_a_placement() {
     double_click(&mut h, "Bicycle");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
-    // Spawn leaves for the map, where the map editor's action opens it again.
-    click_footer(&mut h, "Spawn");
-    run_until(&mut h, "the map", 120, |h| {
-        h.state()
-            .model
-            .screens()
-            .last()
-            .is_some_and(|s| s.role == bn_client_egui::protocol::ScreenRole::Map)
-    });
+    // Spawn puts the design east of the avatar and stays; Escape leaves for the map editor that opened the editor.
+    menu(&mut h, "World", "Spawn");
     rest(&mut h);
     shot_at(&mut h, "xv-1-spawned", &sizes);
-    assert!(h.state_mut().model.invoke_action("editor"));
+    key(&mut h, egui::Key::Escape);
     wait_kind(&mut h, "editor");
     rest(&mut h);
 
     // Two squares wide and high around the avatar's, so the bicycle east of it is inside whatever its square.
-    for (label, count) in [("Export width", "2"), ("Export height", "2")] {
-        click_footer(&mut h, label);
-        replace_text(&mut h, count);
-        click(&mut h, "OK");
+    for label in ["Width", "Height"] {
+        set_export_size(&mut h, label, "2");
     }
-    let path = crate::common::live::profile_dir().join("mods/zz_export_vehicle.json");
+    let path =
+        crate::common::live::profile_dir().join("mods/zz_export_vehicle/zz_export_vehicle.json");
     click_footer(&mut h, "Export mapgen here");
     type_text(&mut h, &path.to_string_lossy());
     key(&mut h, egui::Key::Enter);
@@ -2832,12 +2998,11 @@ fn the_map_editor_makes_a_new_overmap_special_and_connects_it() {
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1920.0, 1080.0));
     rest(&mut h);
-    open_map_editor(&mut h);
-    show_advanced(&mut h);
-    click(&mut h, "Mapgen");
+    open_advanced_map_editor(&mut h);
+    open_select(&mut h, "Kind");
     click(&mut h, "Overmap special");
-    let path = crate::common::live::profile_dir().join("mods/zz_new_special.json");
-    click_beside(&mut h, "New file/Path");
+    let path = crate::common::live::profile_dir().join("mods/zz_new_special/zz_new_special.json");
+    click_beside(&mut h, "New mapgen file/Path");
     replace_text(&mut h, &path.to_string_lossy());
     click_beside(&mut h, "Special id");
     replace_text(&mut h, "zz_walk_new_special");
@@ -2900,7 +3065,12 @@ fn the_map_editor_adds_a_placement_from_a_marked_rectangle_and_removes_it() {
     settle(&mut h);
 
     // An item placement: the form's default kind, its other members as JSON; its button is named as its heading.
-    click_beside(&mut h, "Add placement/Value");
+    fold_catalog(&mut h);
+    if find(&h, "Add placement").is_none() {
+        click(&mut h, "New placement");
+        rest(&mut h);
+    }
+    click_beside(&mut h, "New placement/Value");
     type_text(&mut h, r#"{"item": "bedroom", "chance": 100}"#);
     click_button(&mut h, "Add placement");
     rest(&mut h);
@@ -2977,6 +3147,11 @@ fn shot_both(h: &mut H, name: &str) {
 fn menu(h: &mut H, group: &str, item: &str) {
     press(h, group);
     h.run_steps(4);
+    click_menu_item(h, group, item);
+}
+
+/// Clicks `item` of the open menu `group`.
+fn click_menu_item(h: &mut H, group: &str, item: &str) {
     let under = find(h, group).unwrap().left_bottom();
     let at = h
         .root()
@@ -3063,15 +3238,11 @@ fn a_modder_opens_draws_undoes_saves_tests_and_leaves_the_map_editor_workspace()
     click_tab(&mut h, "Pencil");
     // Squares in the canvas's first view, which the history under it would hide lower down.
     paint(&mut h, 2, 10);
-    run_until(&mut h, "the pencil square", 30, |h| {
-        glyph(h, 2, 10) == Some('#')
-    });
+    run_until(&mut h, "the pencil square", 30, |h| walled(h, 2, 10));
     click_tab(&mut h, "Rectangle");
     paint(&mut h, 4, 9);
     paint(&mut h, 8, 12);
-    run_until(&mut h, "the rectangle", 30, |h| {
-        glyph(h, 8, 12) == Some('#')
-    });
+    run_until(&mut h, "the rectangle", 30, |h| walled(h, 8, 12));
     shot_both(&mut h, "ws-map-05-drawn");
     let drawn = canvas_glyphs(&h);
 
@@ -3082,7 +3253,7 @@ fn a_modder_opens_draws_undoes_saves_tests_and_leaves_the_map_editor_workspace()
     press(&mut h, "Undo");
     rest(&mut h);
     assert_ne!(canvas_glyphs(&h), drawn);
-    assert_eq!(glyph(&h, 2, 10), Some('#'));
+    assert!(walled(&h, 2, 10));
     shot_both(&mut h, "ws-map-07-undone");
 
     // What can spawn on squares marked by the select tool, from the View menu: the list comes into view.
@@ -3101,7 +3272,7 @@ fn a_modder_opens_draws_undoes_saves_tests_and_leaves_the_map_editor_workspace()
     shot_both(&mut h, "ws-map-07b-loot");
 
     // Saved as a mod file from the File menu, which asks for the path as the footer would.
-    let path = crate::common::live::profile_dir().join("mods/zz_ws_house.json");
+    let path = crate::common::live::profile_dir().join("mods/zz_ws_house/zz_ws_house.json");
     menu(&mut h, "File", "Save as");
     shot_both(&mut h, "ws-map-08-save-as-asks");
     replace_text(&mut h, &path.to_string_lossy());
@@ -3181,6 +3352,7 @@ fn a_modder_opens_a_prototype_installs_a_part_spawns_and_leaves_the_vehicle_edit
     assert!(stacked(&h, "headlight"), "{}", labels(&h).join("\n"));
 
     // Every tab of the design is reached and read in the right column.
+    show_advanced(&mut h);
     for tab in ["Items here", "Raw JSON", "Parts here"] {
         click_tab(&mut h, tab);
         shot_both(
@@ -3189,17 +3361,17 @@ fn a_modder_opens_a_prototype_installs_a_part_spawns_and_leaves_the_vehicle_edit
         );
     }
 
-    // Spawned beside the avatar from the World menu: the map shows it.
-    menu(&mut h, "World", "Spawn");
+    // Test drive spawns it beside the avatar and leaves for the map, which shows it.
+    click_button(&mut h, "Test drive");
     run_until(&mut h, "the map", 60, |h| {
         !h.state().model.busy() && top(h).as_deref() != Some("vehicle_editor")
     });
     rest(&mut h);
     shot_both(&mut h, "ws-veh-07-spawned");
 
-    // Back in the map editor by the map's editor action, and left for the main menu.
+    // Back in the editor by the map's editor action, which opens the vehicle editor again while a test drive lasts, and left for the main menu.
     click(&mut h, "Map Editor");
-    wait_kind(&mut h, "editor");
+    wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
     shot_both(&mut h, "ws-veh-08-editor-again");
     key(&mut h, egui::Key::Escape);
@@ -3241,6 +3413,17 @@ fn the_map_editor_draws_by_the_keyboard_and_opens_its_keys_with_f1() {
     create_mapgen(&mut h, "zz_keys");
     map_wall(&mut h);
     click_tab(&mut h, "Pencil");
+    // A click leaves no focus in the window: the tab the walk chose holds it, as the keyboard would have put it.
+    let tab = h
+        .root()
+        .children_recursive()
+        .find(|n| {
+            let a = n.accesskit_node();
+            a.role() == egui::accesskit::Role::Tab && a.label().as_deref() == Some("Pencil")
+        })
+        .expect("the pencil tab");
+    tab.focus();
+    h.run_steps(3);
 
     let mut presses = 0;
     while !focused_on(&h, "Canvas") {
@@ -3517,6 +3700,7 @@ fn the_vehicle_editor_answers_the_audits_clicks() {
     click(&mut h, "Vehicle editor");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
+    show_advanced(&mut h);
     shot(&mut h, "v1-open");
     click_search(&mut h, "Vehicles");
     type_text(&mut h, "bicycle");
@@ -3526,7 +3710,7 @@ fn the_vehicle_editor_answers_the_audits_clicks() {
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
     shot(&mut h, "v2-prototype");
-    click(&mut h, "Install");
+    click(&mut h, "Pencil");
     rest(&mut h);
     shot(&mut h, "v3-tool-single-click");
     let (engine, shown) = chosen_rows(&h, "vehicle:canvas_tools");
@@ -3654,8 +3838,10 @@ fn the_map_editor_answers_the_audits_clicks_keys_and_refusals() {
     rest(&mut h);
     shot(&mut h, "m1-open");
     create_mapgen(&mut h, "audit_fixes");
+    show_advanced(&mut h);
     rest(&mut h);
     // A wall mapped by typing its symbol and terrain id into the mapping form.
+    open_mapping(&mut h);
     click_beside(&mut h, "Mapping/Symbol");
     replace_text(&mut h, "#");
     key(&mut h, egui::Key::Enter);
@@ -3675,6 +3861,11 @@ fn the_map_editor_answers_the_audits_clicks_keys_and_refusals() {
         engine == shown,
         format!("map history: engine chose {engine:?}, drawn chosen {shown:?}"),
     );
+    // The older step has the paint ahead of it: redone, nothing is left to redo.
+    for _ in 0..2 {
+        key_mod(&mut h, egui::Modifiers::CTRL, egui::Key::Y);
+    }
+    rest(&mut h);
     let why = denial(&h, "editor:redo");
     press(&mut h, "Edit");
     rest(&mut h);
@@ -3889,7 +4080,7 @@ fn the_editors_show_the_engines_hints_and_answer_clicks_quickly() {
         ));
         rest(&mut h);
     }
-    click_tab(&mut h, "World");
+    open_world_tab(&mut h);
     rest(&mut h);
     shot(&mut h, "h8-world-vehicles");
     dump(&h, "world vehicles");
@@ -3922,7 +4113,7 @@ fn the_editors_show_the_engines_hints_and_answer_clicks_quickly() {
         rest(&mut h);
         menu(&mut h, "World", "Vehicle editor");
         wait_kind(&mut h, "vehicle_editor");
-        click_tab(&mut h, "World");
+        open_world_tab(&mut h);
         rest(&mut h);
     }
     if find(&h, "Edit in place").is_some() {
@@ -3953,6 +4144,14 @@ fn the_editors_show_the_engines_hints_and_answer_clicks_quickly() {
 fn the_editors_show_mod_folders_required_marks_the_leave_prompt_and_the_fuel_picker() {
     let sizes = [(1920.0, 1080.0)];
     let mut h = audit_start();
+    // The engine ignores `Show advanced settings` on the map editor's start page: the vehicle editor sets it.
+    click(&mut h, "Editor");
+    click(&mut h, "Vehicle editor");
+    wait_kind(&mut h, "vehicle_editor");
+    rest(&mut h);
+    show_advanced(&mut h);
+    key(&mut h, egui::Key::Escape);
+    rest(&mut h);
     click(&mut h, "Editor");
     click(&mut h, "Choose mods");
     rest(&mut h);
@@ -3962,7 +4161,6 @@ fn the_editors_show_mod_folders_required_marks_the_leave_prompt_and_the_fuel_pic
     key(&mut h, egui::Key::Escape);
     click(&mut h, "Yes");
     wait_kind(&mut h, "editor");
-    show_advanced(&mut h);
     rest(&mut h);
     // A path outside any mod folder, and one in another mod's folder, are refused with a suggestion.
     let mods = crate::common::live::profile_dir().join("mods");
@@ -4014,6 +4212,8 @@ fn the_editors_show_mod_folders_required_marks_the_leave_prompt_and_the_fuel_pic
     // The vehicle editor: a new design, a tank, and its fuel.
     click(&mut h, "Editor");
     click(&mut h, "Vehicle editor");
+    // The mod's mapgen is used by nothing, so the engine reports it as data error while it loads: Continue it.
+    continue_through_data_errors(&mut h);
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
     menu(&mut h, "File", "New vehicle");
@@ -4022,9 +4222,30 @@ fn the_editors_show_mod_folders_required_marks_the_leave_prompt_and_the_fuel_pic
     dump(&h, "new vehicle");
 }
 
+/// Presses the first choice of every data error the engine reports while it loads, until the editor is up.
+fn continue_through_data_errors(h: &mut H) {
+    for _ in 0..10_000 {
+        let error = h
+            .state()
+            .model
+            .menu()
+            .filter(|m| m.context == "DEBUG_MSG")
+            .and_then(|m| m.choices.first().map(|c| c.id.clone()));
+        if let Some(id) = error {
+            h.state_mut().model.choose(&id);
+        } else if !h.state().model.busy() && top(h).as_deref() == Some("vehicle_editor") {
+            return;
+        }
+        h.run_steps(1);
+        std::thread::sleep(std::time::Duration::from_millis(30));
+    }
+    panic!("the editor never came up after its data errors");
+}
+
 /// Paints one square of the open mapgen so the document counts as edited.
 fn tool_tab_click(h: &mut H) {
     double_click(h, "adobe wall");
+    open_mapping(h);
     click_beside(h, "Symbol");
     replace_text(h, "#");
     key(h, egui::Key::Enter);
@@ -4161,8 +4382,7 @@ fn a_first_time_modder_builds_a_house_in_a_new_mod_with_picks_and_shape_tools() 
     click(&mut h, "New mod folder");
     walk_shot(&mut h, "02-new-mod-folder");
     dump(&h, "new mod folder");
-    println!("PATH {}", field(&h, "editor:new", "path"));
-    click_beside(&mut h, "Overmap terrain");
+    click_beside(&mut h, "New map/Name");
     replace_text(&mut h, "house_zz");
     click(&mut h, "Create");
     if find(&h, "Continue").is_some() {
