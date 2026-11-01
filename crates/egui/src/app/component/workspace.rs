@@ -24,6 +24,10 @@ const HEAD_ROWS: f32 = 3.0;
 const WORKED_ROWS: f32 = 5.0;
 /// The rows of its first part a section of a column keeps in view whatever the others hold.
 const REACH_ROWS: f32 = 1.0;
+/// The width a separator takes between two facts of a status line.
+const SEPARATOR: f32 = 6.0;
+/// The least a value of a status line is cut to, a few letters of it.
+const CUT_LEAST: f32 = 60.0;
 /// The height the log's strip first has, which the player can change.
 const LOG_HEIGHT: f32 = 160.0;
 
@@ -328,7 +332,7 @@ impl<M: GameModel> App<M> {
                             ui.colored_label(BAD, markup::plain(denial));
                         }
                     }
-                    // The buttons end the line, at most half of it; the facts wrap in what they leave.
+                    // The buttons end the line, at most half of it; the facts take what they leave.
                     let line = ui.available_rect_before_wrap();
                     let gap = ui.spacing().item_spacing.x;
                     let split = line.right() - footer_width.min(line.width() / 2.0);
@@ -445,16 +449,47 @@ impl<M: GameModel> App<M> {
         let Component::Panel(panel) = c else {
             return self.component(ui, screen, c, out);
         };
+        let font = egui::TextStyle::Body.resolve(ui.style());
+        let gap = ui.spacing().item_spacing.x;
+        let stats = panel.stats.iter().flatten().collect::<Vec<_>>();
+        let labels = stats
+            .iter()
+            .map(|s| markup::plain(&s.label.shown()))
+            .collect::<Vec<_>>();
+        let values = std::iter::once(markup::plain(&panel.title.shown()))
+            .chain(stats.iter().map(|s| stat_text(s)))
+            .collect::<Vec<_>>();
+        let widths = values
+            .iter()
+            .map(|v| text_width(ui, v, &font))
+            .collect::<Vec<_>>();
+        let label_widths = labels
+            .iter()
+            .map(|l| text_width(ui, l, &font))
+            .collect::<Vec<_>>();
+        // The line holds every fact: past its end, the longest values are cut to one width, whole on hover. Each
+        // fact takes its label, a separator and the gaps around them whole.
+        let whole = label_widths
+            .iter()
+            .map(|w| w + SEPARATOR + 3.0 * gap)
+            .sum::<f32>();
+        let given = shares(ui.available_width() - whole - gap, &widths, CUT_LEAST);
+        let value = |ui: &mut egui::Ui, text: egui::RichText, i: usize| match given[i] < widths[i] {
+            true => {
+                let room = egui::vec2(given[i], ui.available_height());
+                ui.allocate_ui(room, |ui| ui.add(egui::Label::new(text).truncate()));
+            }
+            false => {
+                ui.label(text);
+            }
+        };
         ui.horizontal_wrapped(|ui| {
-            ui.label(egui::RichText::new(markup::plain(&panel.title.shown())).strong());
-            let font = egui::TextStyle::Body.resolve(ui.style());
-            let (gap, right) = (ui.spacing().item_spacing.x, ui.max_rect().right());
-            for stat in panel.stats.iter().flatten() {
-                let (label, shown) = (markup::plain(&stat.label.shown()), stat_text(stat));
-                // A fact wraps to the next line whole, its value beside its label, before it would run past the
-                // line's end.
-                let width = text_width(ui, &label, &font) + gap + text_width(ui, &shown, &font);
-                match right - ui.cursor().left() < width + 3.0 * gap {
+            value(ui, egui::RichText::new(&values[0]).strong(), 0);
+            let right = ui.max_rect().right();
+            for (i, (stat, label)) in stats.iter().zip(labels).enumerate() {
+                // Facts too many for the line even cut go on to the next line whole, the value beside its label.
+                let width = label_widths[i] + gap + given[i + 1];
+                match right - ui.cursor().left() < width + SEPARATOR + gap - 0.5 {
                     true => ui.end_row(),
                     false => {
                         ui.separator();
@@ -462,9 +497,9 @@ impl<M: GameModel> App<M> {
                 }
                 ui.horizontal(|ui| {
                     ui.weak(label);
-                    if !shown.is_empty() {
+                    if !values[i + 1].is_empty() {
                         let color = stat.tone.map_or(ui.visuals().text_color(), tone_color);
-                        ui.label(egui::RichText::new(shown).color(color));
+                        value(ui, egui::RichText::new(&values[i + 1]).color(color), i + 1);
                     }
                 });
             }
