@@ -833,6 +833,59 @@ fn a_novice_adds_an_item_group_with_the_placements_tool_and_the_catalog() {
 
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
+fn a_novice_keeps_squares_in_the_library_and_takes_them_again() {
+    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let (mut h, _root) = start(&dir);
+    h.set_size(egui::vec2(1280.0, 800.0));
+    rest(&mut h);
+    open_map_editor(&mut h);
+    click_beside(&mut h, "New map/Name");
+    replace_text(&mut h, "My bench");
+    click(&mut h, "Create");
+    wait_kind(&mut h, "editor");
+    rest(&mut h);
+    open_catalog(&mut h);
+    click_tab(&mut h, "Terrain");
+    double_click(&mut h, "brick wall");
+    rest(&mut h);
+    paint(&mut h, 4, 3);
+    paint(&mut h, 5, 3);
+    rest(&mut h);
+    let walled = canvas_glyphs(&h);
+    let brick = walled[3].chars().nth(4).unwrap();
+    type_text(&mut h, "s");
+    drag_squares(&mut h, "lib-1-marked", (4, 3), &[(5, 3)], egui::Vec2::ZERO);
+    rest(&mut h);
+    key_mod(&mut h, egui::Modifiers::CTRL, egui::Key::C);
+    rest(&mut h);
+    press(&mut h, "Edit");
+    h.run_steps(4);
+    click_menu_item(&mut h, "Edit", "Save copy to library");
+    rest(&mut h);
+    shot(&mut h, "lib-2-name");
+    replace_text(&mut h, "Bench");
+    key(&mut h, egui::Key::Enter);
+    rest(&mut h);
+    shot(&mut h, "lib-3-saved");
+    fold_catalog(&mut h);
+    click(&mut h, "Library");
+    rest(&mut h);
+    shot(&mut h, "lib-4-library");
+    click(&mut h, "Bench");
+    rest(&mut h);
+    assert_eq!(tool_tab(&h).as_deref(), Some("Paste"));
+    shot(&mut h, "lib-5-in-hand");
+    paint(&mut h, 10, 12);
+    rest(&mut h);
+    shot(&mut h, "lib-6-pasted");
+    let pasted = canvas_glyphs(&h);
+    assert_eq!(pasted[12].chars().nth(10), Some(brick));
+    assert_eq!(pasted[12].chars().nth(11), Some(brick));
+}
+
+#[test]
+#[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_paints_places_furniture_undoes_previews_saves_and_reopens() {
     let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
