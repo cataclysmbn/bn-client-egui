@@ -122,6 +122,21 @@ fn button(h: &H, label: &str) -> Option<egui::Rect> {
         .last()
 }
 
+/// Opens the select whose field is labelled `label`, once it is in view and stopped moving.
+fn open_select(h: &mut H, label: &str) {
+    let combo = |h: &H| {
+        h.root()
+            .children_recursive()
+            .find(|n| {
+                let a = n.accesskit_node();
+                a.role() == egui::accesskit::Role::ComboBox && a.label().as_deref() == Some(label)
+            })
+            .map(|n| n.rect())
+    };
+    let at = click_stable(h, label, combo);
+    click_at(h, at.center());
+}
+
 /// Clicks `button(label)` once it is in view and stopped moving.
 fn click_button(h: &mut H, label: &str) {
     let at = click_stable(h, label, |h| button(h, label));
@@ -448,13 +463,10 @@ fn tap(h: &mut H, at: egui::Pos2) {
     h.run_steps(2);
 }
 
-/// The main menu's Editor tab, its map editor, and the mod list's answer, until the editor is up.
+/// The main menu's Editor tab and its map editor, until the editor is up.
 fn open_map_editor(h: &mut H) {
     click(h, "Editor");
     click(h, "Map editor");
-    // The mod list: Escape leaves it with the mods as they are, and the engine asks to open the editor with them.
-    key(h, egui::Key::Escape);
-    click(h, "Yes");
     wait_kind(h, "editor");
 }
 
@@ -529,26 +541,96 @@ fn glyph(h: &H, x: usize, y: usize) -> Option<char> {
     canvas_glyphs(h)[y].chars().nth(x)
 }
 
-/// A new mapgen file in a mod folder `name` of the profile's mods directory, made from the editor's form, and its
-/// canvas: the editor refuses a path outside a mod folder.
+/// Shows the settings modders use, the paths and ids among them, from the View menu.
+fn show_advanced(h: &mut H) {
+    menu(h, "View", "Show advanced settings");
+}
+
+/// A new map `name` in a new mod of the profile's mods directory, `mod/name` or else named as the map, made from
+/// the editor's form with names alone, and its canvas.
 fn create_mapgen(h: &mut H, name: &str) -> std::path::PathBuf {
-    let path = crate::common::live::profile_dir().join(format!("mods/{name}/{name}.json"));
+    let (mod_name, name) = name.split_once('/').unwrap_or((name, name));
+    let path = crate::common::live::profile_dir().join(format!("mods/{mod_name}/{name}.json"));
     // The start page heads the form so; an open document, shorter.
-    let heading = match find(h, "New mapgen file") {
-        Some(_) => "New mapgen file/Path",
-        None => "New file/Path",
+    let heading = match find(h, "New map") {
+        Some(_) => "New map",
+        None => "New file",
     };
-    click_beside(h, heading);
-    // The form keeps what the file made before it was given.
-    replace_text(h, &path.to_string_lossy());
-    click_beside(h, "Overmap terrain");
-    replace_text(h, "field");
+    click_beside(h, &format!("{heading}/Name"));
+    replace_text(h, name);
+    // A later map goes in the mod made last, whose select's label is its name; New mod asks for another.
+    if find(h, "Mod name").is_none() {
+        open_select(h, "Mod");
+        click(h, "New mod");
+    }
+    click_beside(h, &format!("{heading}/Mod name"));
+    replace_text(h, mod_name);
     click(h, "Create");
     if find(h, "Continue").is_some() {
         click(h, "Continue");
     }
     wait_kind(h, "editor");
     path
+}
+
+/// The house a novice makes: names alone make it, and once set to appear in towns its mod loads with the next editor
+/// world, whose file list finds the house by its name.
+#[test]
+#[ignore = "requires BN_ENGINE pointing at an engine binary"]
+fn the_map_editor_makes_a_house_from_names_alone_that_new_worlds_place_in_towns() {
+    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let (mut h, _root) = start(&dir);
+    h.set_size(egui::vec2(1280.0, 800.0));
+    rest(&mut h);
+    open_map_editor(&mut h);
+    click_beside(&mut h, "New map/Name");
+    replace_text(&mut h, "My house");
+    click_beside(&mut h, "New map/Mod name");
+    replace_text(&mut h, "My first mod");
+    rest(&mut h);
+    shot(&mut h, "house-1-named");
+    click(&mut h, "Create");
+    wait_kind(&mut h, "editor");
+    rest(&mut h);
+    let path = crate::common::live::profile_dir().join("mods/my_first_mod/my_house.json");
+    assert!(path.is_file(), "{}", path.display());
+    assert!(
+        labels(&h)
+            .iter()
+            .any(|l| l.contains("My house (My first mod)")),
+        "{:?}",
+        labels(&h)
+    );
+    shot(&mut h, "house-2-created");
+
+    open_select(&mut h, "Where it appears");
+    click(&mut h, "In towns");
+    let placement = path.with_file_name("my_house.placement.json");
+    run_until(&mut h, "the placement file", 60, |_| placement.is_file());
+    rest(&mut h);
+    assert!(
+        labels(&h).iter().any(|l| l.contains("In towns, sometimes")),
+        "{:?}",
+        labels(&h)
+    );
+    shot(&mut h, "house-3-in-towns");
+
+    // The next editor world loads the player's mods: the house's overmap terrain is the game's now.
+    key(&mut h, egui::Key::Escape);
+    open_map_editor(&mut h);
+    click_input(&mut h, "Files");
+    type_text(&mut h, "my house");
+    key(&mut h, egui::Key::Enter);
+    rest(&mut h);
+    shot(&mut h, "house-4-found-by-name");
+    assert!(
+        labels(&h)
+            .iter()
+            .any(|l| l.ends_with("my_first_mod/my_house.json")),
+        "{:?}",
+        labels(&h)
+    );
 }
 
 #[test]
@@ -672,11 +754,8 @@ fn the_map_editor_paints_places_furniture_undoes_previews_saves_and_reopens() {
     // Reopened from the main menu's recent files: the walls and the barrel are still there.
     click(&mut h, "Editor");
     shot(&mut h, "map-10-recent");
-    click(&mut h, &path.to_string_lossy());
-    // The mod list first, left with the mods as they are, as when the editor opened.
-    wait_kind(&mut h, "world_creation");
-    key(&mut h, egui::Key::Escape);
-    click(&mut h, "Yes");
+    // The menu names a map of the player's mods by its name and its mod's.
+    click(&mut h, "zz_walk (zz_walk)");
     wait_kind(&mut h, "editor");
     run_until(&mut h, "the reopened canvas", 30, |h| {
         canvas_glyphs(h).len() == 24
@@ -714,8 +793,6 @@ fn the_vehicle_editor_prototypes_list_keeps_its_id_column_clear_of_the_scroll_ba
     rest(&mut h);
     click(&mut h, "Editor");
     click(&mut h, "Vehicle editor");
-    key(&mut h, egui::Key::Escape);
-    click(&mut h, "Yes");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
     // Opened, the prototype takes the right of the window and the list is left a narrow pane.
@@ -764,8 +841,6 @@ fn the_vehicle_editor_opens_a_prototype_installs_and_saves_a_mod_file() {
     rest(&mut h);
     click(&mut h, "Editor");
     click(&mut h, "Vehicle editor");
-    key(&mut h, egui::Key::Escape);
-    click(&mut h, "Yes");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
     shot(&mut h, "veh-1-editor");
@@ -868,8 +943,6 @@ fn the_vehicle_editor_sets_the_ammunition_of_a_turret_from_the_part_tab() {
     rest(&mut h);
     click(&mut h, "Editor");
     click(&mut h, "Vehicle editor");
-    key(&mut h, egui::Key::Escape);
-    click(&mut h, "Yes");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
     click_input(&mut h, "Vehicles");
@@ -1018,6 +1091,7 @@ fn the_map_editor_creates_a_palette_maps_a_symbol_and_saves_it() {
     h.set_size(egui::vec2(1290.0, 830.0));
     rest(&mut h);
     open_map_editor(&mut h);
+    show_advanced(&mut h);
     shot_at(&mut h, "pal-1-form", &sizes);
     // The kind select, opened by a click; its third option names the palette and relabels the id field.
     click(&mut h, "Mapgen");
@@ -1078,6 +1152,9 @@ fn the_map_editor_creates_a_palette_maps_a_symbol_and_saves_it() {
     shot_at(&mut h, "pal-7-saved", &sizes);
 }
 
+/// The game file `start_with_recent` remembers, as the main menu names it: by its path under the game's folder.
+const HOUSE: &str = "data/json/mapgen/house/house01.json";
+
 /// A walk's engine profile holding the documents the editors opened before: a map file of the game's data and the
 /// bicycle prototype, both with the core mod.
 fn start_with_recent() -> (H<'static>, String) {
@@ -1127,8 +1204,8 @@ fn editor_tab_lists(h: &mut H, rows: &[(&str, &str)]) {
         h.set_size(egui::vec2(1290.0, 830.0));
         settle(h);
     }
-    // Map editor, Vehicle editor, Load save, then the recent documents.
-    for _ in 0..2 {
+    // Map editor, Vehicle editor, Load save, Choose mods, then the recent documents.
+    for _ in 0..3 {
         key(h, egui::Key::ArrowDown);
     }
     for (i, (label, description)) in rows.iter().enumerate() {
@@ -1150,17 +1227,12 @@ fn the_main_menu_reopens_a_recent_map_file_in_the_map_editor() {
     editor_tab_lists(
         &mut h,
         &[
-            (&file, "Open it in the map editor with"),
+            (HOUSE, "Open it in the map editor with"),
             ("bicycle", "Open it in the vehicle editor with"),
         ],
     );
-    click(&mut h, &file);
-    rest(&mut h);
-    shot(&mut h, "recent-2-map-mods-asks");
-    // The mod list: Escape leaves it with the mods the document was opened with, and the engine asks to open.
-    key(&mut h, egui::Key::Escape);
-    shot(&mut h, "recent-3-map-confirm");
-    click(&mut h, "Yes");
+    // No mod list: the editor opens with the mods the document was opened with.
+    click(&mut h, HOUSE);
     wait_kind(&mut h, "editor");
     rest(&mut h);
     shot(&mut h, "recent-4-map-opened");
@@ -1180,19 +1252,15 @@ fn the_main_menu_reopens_a_recent_map_file_in_the_map_editor() {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_main_menu_reopens_a_recent_vehicle_in_the_vehicle_editor() {
-    let (mut h, file) = start_with_recent();
+    let (mut h, _) = start_with_recent();
     editor_tab_lists(
         &mut h,
         &[
-            (&file, "Open it in the map editor with"),
+            (HOUSE, "Open it in the map editor with"),
             ("bicycle", "Open it in the vehicle editor with"),
         ],
     );
     click(&mut h, "bicycle");
-    rest(&mut h);
-    shot(&mut h, "recent-2-vehicle-mods-asks");
-    key(&mut h, egui::Key::Escape);
-    click(&mut h, "Yes");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
     shot(&mut h, "recent-3-vehicle-opened");
@@ -1372,9 +1440,6 @@ fn the_map_editor_outlines_overmap_squares_and_shows_the_level_below_faded() {
     click(&mut h, "Editor");
     rest(&mut h);
     click(&mut h, &file);
-    rest(&mut h);
-    key(&mut h, egui::Key::Escape);
-    click(&mut h, "Yes");
     wait_kind(&mut h, "editor");
     rest(&mut h);
     shot_at(&mut h, "lv-1-ground", &sizes);
@@ -1445,9 +1510,6 @@ fn the_map_editor_shows_the_squares_beside_the_entry_and_a_click_on_one_opens_it
     click(&mut h, "Editor");
     rest(&mut h);
     click(&mut h, &file);
-    rest(&mut h);
-    key(&mut h, egui::Key::Escape);
-    click(&mut h, "Yes");
     wait_kind(&mut h, "editor");
     rest(&mut h);
     shot_at(&mut h, "nb-1-first-entry", &sizes);
@@ -1567,9 +1629,6 @@ fn the_map_editor_drags_a_placement_whole_and_by_its_corner() {
     click(&mut h, "Editor");
     rest(&mut h);
     click(&mut h, &file);
-    rest(&mut h);
-    key(&mut h, egui::Key::Escape);
-    click(&mut h, "Yes");
     wait_kind(&mut h, "editor");
     rest(&mut h);
     shot_at(&mut h, "pr-1-opened", &sizes);
@@ -1671,9 +1730,6 @@ fn the_map_editor_tool_keys_choose_tools_and_z_turns_the_clipboard() {
     click(&mut h, "Editor");
     rest(&mut h);
     click(&mut h, &file);
-    rest(&mut h);
-    key(&mut h, egui::Key::Escape);
-    click(&mut h, "Yes");
     wait_kind(&mut h, "editor");
     rest(&mut h);
     assert_eq!(selected_tool(&h).as_deref(), Some("Pencil"));
@@ -1758,9 +1814,6 @@ fn the_map_editor_shows_an_overmap_special_by_level_and_a_click_on_a_square_open
     click(&mut h, "Editor");
     rest(&mut h);
     click(&mut h, &file);
-    rest(&mut h);
-    key(&mut h, egui::Key::Escape);
-    click(&mut h, "Yes");
     wait_kind(&mut h, "editor");
     rest(&mut h);
     shot_at(&mut h, "sp-1-ground", &sizes);
@@ -1875,9 +1928,6 @@ fn the_map_editor_draws_and_erases_the_squares_of_an_overmap_special_and_saves_t
     click(&mut h, "Editor");
     rest(&mut h);
     click(&mut h, &path);
-    rest(&mut h);
-    key(&mut h, egui::Key::Escape);
-    click(&mut h, "Yes");
     wait_kind(&mut h, "editor");
     rest(&mut h);
     shot_at(&mut h, "sd-1-opened", &sizes);
@@ -2062,9 +2112,6 @@ fn the_map_editor_places_an_overmap_special_in_the_world_and_tests_it_there() {
     click(&mut h, "Editor");
     rest(&mut h);
     click(&mut h, &path);
-    rest(&mut h);
-    key(&mut h, egui::Key::Escape);
-    click(&mut h, "Yes");
     wait_kind(&mut h, "editor");
     rest(&mut h);
     shot_at(&mut h, "ep-1-opened", &sizes);
@@ -2220,6 +2267,7 @@ fn the_map_editor_makes_a_nested_chunk_and_moves_a_legend_into_a_palette() {
     h.set_size(egui::vec2(1280.0, 800.0));
     rest(&mut h);
     open_map_editor(&mut h);
+    show_advanced(&mut h);
 
     // The form's kind select names a nested chunk, relabels the id field and sizes the chunk.
     click(&mut h, "Mapgen");
@@ -2440,8 +2488,6 @@ fn the_vehicle_editor_turns_a_preview_reloads_a_file_and_asks_before_leaving() {
     rest(&mut h);
     click(&mut h, "Editor");
     click(&mut h, "Vehicle editor");
-    key(&mut h, egui::Key::Escape);
-    click(&mut h, "Yes");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
     click_input(&mut h, "Vehicles");
@@ -2735,6 +2781,7 @@ fn the_map_editor_makes_a_new_overmap_special_and_connects_it() {
     h.set_size(egui::vec2(1920.0, 1080.0));
     rest(&mut h);
     open_map_editor(&mut h);
+    show_advanced(&mut h);
     click(&mut h, "Mapgen");
     click(&mut h, "Overmap special");
     let path = crate::common::live::profile_dir().join("mods/zz_new_special.json");
@@ -3048,8 +3095,6 @@ fn a_modder_opens_a_prototype_installs_a_part_spawns_and_leaves_the_vehicle_edit
     rest(&mut h);
     click(&mut h, "Editor");
     click(&mut h, "Vehicle editor");
-    key(&mut h, egui::Key::Escape);
-    click(&mut h, "Yes");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
     shot_both(&mut h, "ws-veh-01-start");
@@ -3283,8 +3328,6 @@ fn the_editors_keep_their_main_panes_in_view_and_stay_drawn_under_their_keybindi
 
     click(&mut h, "Editor");
     click(&mut h, "Vehicle editor");
-    key(&mut h, egui::Key::Escape);
-    click(&mut h, "Yes");
     wait_kind(&mut h, "vehicle_editor");
     click_input(&mut h, "Vehicles");
     type_text(&mut h, "car");
@@ -3420,8 +3463,6 @@ fn the_vehicle_editor_answers_the_audits_clicks() {
     // nothing to undo.
     click(&mut h, "Editor");
     click(&mut h, "Vehicle editor");
-    key(&mut h, egui::Key::Escape);
-    click(&mut h, "Yes");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
     shot(&mut h, "v1-open");
@@ -3861,13 +3902,15 @@ fn the_editors_show_mod_folders_required_marks_the_leave_prompt_and_the_fuel_pic
     let sizes = [(1920.0, 1080.0)];
     let mut h = audit_start();
     click(&mut h, "Editor");
-    click(&mut h, "Map editor");
+    click(&mut h, "Choose mods");
     rest(&mut h);
     shot_at(&mut h, "c1-mod-picker", &sizes);
     dump(&h, "mod picker");
+    wait_kind(&mut h, "world_creation");
     key(&mut h, egui::Key::Escape);
     click(&mut h, "Yes");
     wait_kind(&mut h, "editor");
+    show_advanced(&mut h);
     rest(&mut h);
     // A path outside any mod folder, and one in another mod's folder, are refused with a suggestion.
     let mods = crate::common::live::profile_dir().join("mods");
@@ -3919,8 +3962,6 @@ fn the_editors_show_mod_folders_required_marks_the_leave_prompt_and_the_fuel_pic
     // The vehicle editor: a new design, a tank, and its fuel.
     click(&mut h, "Editor");
     click(&mut h, "Vehicle editor");
-    key(&mut h, egui::Key::Escape);
-    click(&mut h, "Yes");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
     menu(&mut h, "File", "New vehicle");
@@ -4003,8 +4044,6 @@ fn the_vehicle_editor_shows_its_lists_with_a_design_open() {
     rest(&mut h);
     click(&mut h, "Editor");
     click(&mut h, "Vehicle editor");
-    key(&mut h, egui::Key::Escape);
-    click(&mut h, "Yes");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
     double_click(&mut h, "Offroad Car");
@@ -4228,8 +4267,6 @@ fn the_vehicle_editors_lists_keep_their_words_whole_at_both_sizes() {
     rest(&mut h);
     click(&mut h, "Editor");
     click(&mut h, "Vehicle editor");
-    key(&mut h, egui::Key::Escape);
-    click(&mut h, "Yes");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
     double_click(&mut h, "Offroad Car");

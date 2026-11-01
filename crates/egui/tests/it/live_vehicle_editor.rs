@@ -43,10 +43,6 @@ fn the_vehicle_editor_opens_installs_and_undoes() {
     let (mut h, _root) = start(&dir);
     invoke(&mut h, "menu:tab", row("editor"));
     invoke(&mut h, "menu:entry", row("editor:vehicle"));
-    // The mod list first, left with the mods as they are.
-    wait_kind(&mut h, "world_creation");
-    crate::live_editor_walk::key(&mut h, eframe::egui::Key::Escape);
-    crate::live_editor_walk::click(&mut h, "Yes");
     run_until(&mut h, "the vehicle editor", 900, |h| {
         !h.state().model.busy()
             && h.state()

@@ -218,16 +218,12 @@ impl Rec {
         self.done();
     }
 
-    /// Opens the editor from the main menu: the Editor tab, the editor's entry, the mod list left as it is.
+    /// Opens the editor from the main menu: the Editor tab, then the editor's entry.
     fn open_editor(&mut self, entry: &str, kind: &str) {
         self.say("Main menu: open the Editor tab");
         self.click("Editor");
         self.say(&format!("Choose {entry}"));
         self.click(entry);
-        self.say("The mod list asks which mod holds your files; Esc confirms it");
-        self.grab(HOLD_MS * 2);
-        self.key(egui::Key::Escape);
-        self.click("Yes");
         self.wait_kind(kind);
     }
 
