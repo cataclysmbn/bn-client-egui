@@ -490,6 +490,19 @@ fn open_advanced_map_editor(h: &mut H) {
     open_map_editor(h);
 }
 
+/// The vehicle editor's World tab, whose section Vehicles is folded while a design is open.
+fn open_world_tab(h: &mut H) {
+    let drawn = h.root().children_recursive().any(|n| {
+        let a = n.accesskit_node();
+        a.role() == egui::accesskit::Role::Tab && a.label().as_deref() == Some("World")
+    });
+    if !drawn {
+        click(h, "Vehicles");
+        rest(h);
+    }
+    click_tab(h, "World");
+}
+
 /// Clicks the tab labelled `label` and waits until it is the selected one.
 fn click_tab(h: &mut H, label: &str) {
     let in_bar = |h: &H| {
@@ -576,6 +589,15 @@ fn show_advanced(h: &mut H) {
 /// Whether the legend's Mapping form is open: its button is drawn.
 fn mapping_open(h: &H) -> bool {
     button(h, "Set mapping").is_some()
+}
+
+/// Whether the canvas square (`x`, `y`) holds a brick wall, by its label: a stroke of terrain leaves the furniture of a
+/// square, so its glyph is the symbol of both.
+fn walled(h: &H, x: u32, y: u32) -> bool {
+    canvas_grid(h)
+        .2
+        .iter()
+        .any(|c| (c.0, c.1) == (x, y) && c.3.starts_with("brick wall"))
 }
 
 /// Opens the Mapping form of the legend when it is folded.
@@ -2514,7 +2536,7 @@ fn the_toolbar_offers_the_map_editor_in_game_only_with_the_debug_trait() {
     click(&mut h, "Map Editor");
     shot_at(&mut h, "ig-2-denied", &sizes);
     assert!(
-        find(&h, "You need the Debug Editor trait.").is_some(),
+        find(&h, "You need the Debug Editor trait").is_some(),
         "{:?}",
         labels(&h)
     );
@@ -3162,15 +3184,11 @@ fn a_modder_opens_draws_undoes_saves_tests_and_leaves_the_map_editor_workspace()
     click_tab(&mut h, "Pencil");
     // Squares in the canvas's first view, which the history under it would hide lower down.
     paint(&mut h, 2, 10);
-    run_until(&mut h, "the pencil square", 30, |h| {
-        glyph(h, 2, 10) == Some('#')
-    });
+    run_until(&mut h, "the pencil square", 30, |h| walled(h, 2, 10));
     click_tab(&mut h, "Rectangle");
     paint(&mut h, 4, 9);
     paint(&mut h, 8, 12);
-    run_until(&mut h, "the rectangle", 30, |h| {
-        glyph(h, 8, 12) == Some('#')
-    });
+    run_until(&mut h, "the rectangle", 30, |h| walled(h, 8, 12));
     shot_both(&mut h, "ws-map-05-drawn");
     let drawn = canvas_glyphs(&h);
 
@@ -3181,7 +3199,7 @@ fn a_modder_opens_draws_undoes_saves_tests_and_leaves_the_map_editor_workspace()
     press(&mut h, "Undo");
     rest(&mut h);
     assert_ne!(canvas_glyphs(&h), drawn);
-    assert_eq!(glyph(&h, 2, 10), Some('#'));
+    assert!(walled(&h, 2, 10));
     shot_both(&mut h, "ws-map-07-undone");
 
     // What can spawn on squares marked by the select tool, from the View menu: the list comes into view.
@@ -3280,6 +3298,7 @@ fn a_modder_opens_a_prototype_installs_a_part_spawns_and_leaves_the_vehicle_edit
     assert!(stacked(&h, "headlight"), "{}", labels(&h).join("\n"));
 
     // Every tab of the design is reached and read in the right column.
+    show_advanced(&mut h);
     for tab in ["Items here", "Raw JSON", "Parts here"] {
         click_tab(&mut h, tab);
         shot_both(
@@ -3288,17 +3307,17 @@ fn a_modder_opens_a_prototype_installs_a_part_spawns_and_leaves_the_vehicle_edit
         );
     }
 
-    // Spawned beside the avatar from the World menu: the map shows it.
-    menu(&mut h, "World", "Spawn");
+    // Test drive spawns it beside the avatar and leaves for the map, which shows it.
+    click_button(&mut h, "Test drive");
     run_until(&mut h, "the map", 60, |h| {
         !h.state().model.busy() && top(h).as_deref() != Some("vehicle_editor")
     });
     rest(&mut h);
     shot_both(&mut h, "ws-veh-07-spawned");
 
-    // Back in the map editor by the map's editor action, and left for the main menu.
+    // Back in the editor by the map's editor action, which opens the vehicle editor again while a test drive lasts, and left for the main menu.
     click(&mut h, "Map Editor");
-    wait_kind(&mut h, "editor");
+    wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
     shot_both(&mut h, "ws-veh-08-editor-again");
     key(&mut h, egui::Key::Escape);
@@ -4006,7 +4025,7 @@ fn the_editors_show_the_engines_hints_and_answer_clicks_quickly() {
         ));
         rest(&mut h);
     }
-    click_tab(&mut h, "World");
+    open_world_tab(&mut h);
     rest(&mut h);
     shot(&mut h, "h8-world-vehicles");
     dump(&h, "world vehicles");
@@ -4039,7 +4058,7 @@ fn the_editors_show_the_engines_hints_and_answer_clicks_quickly() {
         rest(&mut h);
         menu(&mut h, "World", "Vehicle editor");
         wait_kind(&mut h, "vehicle_editor");
-        click_tab(&mut h, "World");
+        open_world_tab(&mut h);
         rest(&mut h);
     }
     if find(&h, "Edit in place").is_some() {
