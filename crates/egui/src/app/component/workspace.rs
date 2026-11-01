@@ -21,7 +21,7 @@ const FIT_ROWS: f32 = 8.0;
 /// heads of the other sections leave the view.
 const HEAD_ROWS: f32 = 3.0;
 /// The rows of the list worked in, the first with a search box over it, a section of a column keeps in view.
-const WORKED_ROWS: f32 = 5.0;
+const WORKED_ROWS: f32 = 8.0;
 /// The rows of its first part a section of a column keeps in view whatever the others hold.
 const REACH_ROWS: f32 = 1.0;
 /// The width a separator takes between two facts of a status line.
@@ -635,18 +635,16 @@ impl<M: GameModel> App<M> {
             .unwrap_or_default();
         // As tall as its parts are with every row of their lists, and as its first part is with its lists at their
         // fewest rows.
-        let fewest = HEAD_ROWS * (tokens::ROW + ui.spacing().item_spacing.y);
-        let worked = WORKED_ROWS * (tokens::ROW + ui.spacing().item_spacing.y);
-        let shrunk = |rows: f32| move |f: &ListFit| f.wanted.min(rows) - f.taken;
+        let shrunk = |rows: f32| move |f: &ListFit| f.wanted.min(rows * f.row) - f.taken;
         let head_to = |h: Head, rows: f32| {
             h.height + fits.iter().take(h.lists).map(shrunk(rows)).sum::<f32>()
         };
-        let head = |h: Head| head_to(h, fewest);
+        let head = |h: Head| head_to(h, HEAD_ROWS);
         ColumnHeight {
             whole: content + fits.iter().map(|f| f.wanted - f.taken).sum::<f32>(),
             part: head(first.part),
             listed: first.listed.map_or(0.0, head),
-            searched: first.searched.map(|h| head_to(h, worked)),
+            searched: first.searched.map(|h| head_to(h, WORKED_ROWS)),
         }
     }
 

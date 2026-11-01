@@ -125,6 +125,8 @@ struct ListFit {
     id: String,
     wanted: f32,
     taken: f32,
+    /// The height of one of its rows with the gap under it.
+    row: f32,
 }
 
 /// A list's scroll offset in the last frame, and the row of the focus it last brought into sight.

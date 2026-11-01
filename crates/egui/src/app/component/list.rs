@@ -289,6 +289,7 @@ impl<M: GameModel> App<M> {
                 id: id.clone(),
                 wanted: most.map_or(wanted, |most| wanted.min(most)),
                 taken: list_height,
+                row: height + spacing.y,
             };
             self.screens.column_lists.borrow_mut().push(fit);
         }
