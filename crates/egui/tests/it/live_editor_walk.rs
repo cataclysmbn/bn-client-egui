@@ -633,6 +633,58 @@ fn the_map_editor_makes_a_house_from_names_alone_that_new_worlds_place_in_towns(
     );
 }
 
+/// What goes in a house a novice makes: the Placements tool drags over squares, a click on the catalog picks what goes
+/// there, and no id or JSON is typed.
+#[test]
+#[ignore = "requires BN_ENGINE pointing at an engine binary"]
+fn a_novice_adds_an_item_group_with_the_placements_tool_and_the_catalog() {
+    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let (mut h, _root) = start(&dir);
+    h.set_size(egui::vec2(1280.0, 800.0));
+    rest(&mut h);
+    open_map_editor(&mut h);
+    click_beside(&mut h, "New map/Name");
+    replace_text(&mut h, "My shed");
+    click_beside(&mut h, "New map/Mod name");
+    replace_text(&mut h, "Shed mod");
+    click(&mut h, "Create");
+    wait_kind(&mut h, "editor");
+    rest(&mut h);
+    let path = crate::common::live::profile_dir().join("mods/shed_mod/my_shed.json");
+
+    click(&mut h, "Placements");
+    rest(&mut h);
+    shot(&mut h, "card-1-tool");
+    drag_squares(&mut h, "card-2-dragging", (4, 3), &[(7, 5)], egui::Vec2::ZERO);
+    rest(&mut h);
+    click_input(&mut h, "Catalog");
+    type_text(&mut h, "livingroom");
+    key(&mut h, egui::Key::Enter);
+    rest(&mut h);
+    shot(&mut h, "card-3-marked");
+    click(&mut h, "livingroom");
+    rest(&mut h);
+    shot(&mut h, "card-4-picked");
+    click_footer(&mut h, "Add livingroom");
+    rest(&mut h);
+    shot(&mut h, "card-5-added");
+    key_mod(&mut h, egui::Modifiers::CTRL, egui::Key::S);
+    rest(&mut h);
+    let written: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    let placed = written
+        .as_array()
+        .unwrap()
+        .iter()
+        .find_map(|entry| entry["object"]["place_items"].get(0))
+        .unwrap_or_else(|| panic!("{written}"));
+    assert_eq!(placed["item"], "livingroom");
+    assert_eq!(placed["chance"], 100);
+    assert_eq!(placed["x"], serde_json::json!([4, 7]));
+    assert_eq!(placed["y"], serde_json::json!([3, 5]));
+}
+
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_paints_places_furniture_undoes_previews_saves_and_reopens() {
