@@ -469,8 +469,9 @@ impl<M: GameModel> App<M> {
                         // A secondary drag, which a click is the shortest of, runs the secondary itself. A
                         // pointer click on a draggable canvas is the drag's press and release.
                         let secondary = button.secondary_clicked() && grid.secondary_drag.is_none();
-                        let pointer_click =
-                            grid.drag.is_some() && ui.input(|i| i.pointer.any_released());
+                        let pointer_click = grid.drag.is_some()
+                            && !on_dragged_region(grid, (x, y))
+                            && ui.input(|i| i.pointer.any_released());
                         let primary = button.clicked() && !pointer_click;
                         let runs = [(secondary, &grid.secondary), (primary, &cell.affordance)];
                         for (_, a) in runs.iter().filter(|(on, _)| *on && !canvas::panning(ui)) {
@@ -638,6 +639,9 @@ impl<M: GameModel> App<M> {
             .is_some_and(|(held, _)| held.is_some());
         let mut pointer = grid_pointer(ui, squares, button);
         pointer.pressed &= !busy;
+        // A press on a region moves that region: the drag of the squares does not begin.
+        pointer.pressed &= matches!(by, DragBy::Secondary(_))
+            || !pointer.over.is_some_and(|over| on_dragged_region(grid, over));
         let run = drag::advance(mode, &mut held, pointer);
         let marker = |affordance: &Option<String>| {
             affordance.clone().map(|affordance| {
@@ -716,6 +720,11 @@ enum DragBy<'a> {
 }
 
 /// The pointer over the drawn squares of a grid this frame; a press counts only on the grid's own layer.
+/// Whether `square` is on a region of `grid` that a drag moves.
+fn on_dragged_region(grid: &Grid, square: Square) -> bool {
+    grid.region_drag.is_some() && region::grab(&grid.regions, square, (0.5, 0.5)).is_some()
+}
+
 fn grid_pointer(ui: &egui::Ui, squares: &Squares, button: egui::PointerButton) -> drag::Pointer {
     let at = ui.input(|i| i.pointer.interact_pos());
     let on = at.and_then(|at| {
