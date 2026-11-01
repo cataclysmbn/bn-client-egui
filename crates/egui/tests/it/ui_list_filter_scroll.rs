@@ -119,3 +119,42 @@ fn a_new_filter_text_brings_the_list_back_to_its_first_rows() {
         "the rows of the new filter start at the top"
     );
 }
+
+#[test]
+fn a_row_selected_with_a_new_filter_text_is_brought_into_view() {
+    let (mut h, script) = open(editor("a", 60));
+    let over = h.get_by_label_contains("a part 3").rect().center();
+    for _ in 0..4 {
+        h.hover_at(over);
+        h.run_steps(2);
+        h.event(egui::Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Point,
+            delta: egui::vec2(0.0, -200.0),
+            modifiers: egui::Modifiers::NONE,
+            phase: egui::TouchPhase::Move,
+        });
+        h.run_steps(4);
+    }
+    let shown = (0..60)
+        .filter(|i| h.query_by_label(&format!("a part {i}")).is_some())
+        .collect::<Vec<_>>();
+    let at = shown[shown.len() / 2];
+    let mut screen = editor("ab", 60);
+    fn select(c: &mut Value, id: &str) {
+        match c {
+            Value::Object(m) if m.get("id").is_some_and(|v| v == id) => {
+                m.insert("selected".into(), true.into());
+            }
+            Value::Object(m) => m.values_mut().for_each(|v| select(v, id)),
+            Value::Array(a) => a.iter_mut().for_each(|v| select(v, id)),
+            _ => {}
+        }
+    }
+    select(&mut screen, &format!("part:ab{at}"));
+    push(&script, 42, screen);
+    h.run_steps(8);
+    assert!(
+        h.query_by_label(&format!("ab part {at}")).is_some(),
+        "row {at}, selected as the filter changes, is in view"
+    );
+}
