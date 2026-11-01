@@ -600,3 +600,30 @@ fn a_span_drag_shows_the_squares_its_release_draws_until_it_ends() {
     h.run_steps(4);
     assert_eq!(spot(&mut h, 4, 2), edge, "the shading ends with the drag");
 }
+
+#[test]
+fn a_drag_inside_a_region_of_a_span_canvas_moves_it_and_draws_nothing() {
+    let (mut h, script) = open(editor_with_regions(Some("span")));
+    drag(&mut h, (3, 3), &[(4, 3), (6, 2)]);
+    assert_eq!(
+        spans(&script),
+        [("placement:place_items:0".into(), "3,-1,3,-1".into())]
+    );
+    assert_eq!(painted(&script), Vec::<String>::new());
+}
+
+#[test]
+fn a_click_on_a_region_of_a_span_canvas_paints_its_square_once() {
+    let (mut h, script) = open(editor_with_regions(Some("span")));
+    drag(&mut h, (3, 3), &[]);
+    assert_eq!(painted(&script), ["square:3,3"]);
+    assert_eq!(spans(&script), []);
+}
+
+#[test]
+fn a_drag_outside_every_region_of_a_span_canvas_paints_its_ends_and_moves_nothing() {
+    let (mut h, script) = open(editor_with_regions(Some("span")));
+    drag(&mut h, (7, 1), &[(8, 3)]);
+    assert_eq!(painted(&script), ["square:7,1", "square:8,3"]);
+    assert_eq!(spans(&script), []);
+}
