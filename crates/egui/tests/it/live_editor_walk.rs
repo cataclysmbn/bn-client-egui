@@ -886,6 +886,52 @@ fn a_novice_keeps_squares_in_the_library_and_takes_them_again() {
 
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
+fn a_novice_replaces_a_wall_on_the_marked_squares_from_the_catalog() {
+    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let (mut h, _root) = start(&dir);
+    h.set_size(egui::vec2(1280.0, 800.0));
+    rest(&mut h);
+    open_map_editor(&mut h);
+    click_beside(&mut h, "New map/Name");
+    replace_text(&mut h, "My fence");
+    click(&mut h, "Create");
+    wait_kind(&mut h, "editor");
+    rest(&mut h);
+    open_catalog(&mut h);
+    click_tab(&mut h, "Terrain");
+    double_click(&mut h, "brick wall");
+    rest(&mut h);
+    for (x, y) in [(4, 3), (5, 3), (6, 3), (4, 6)] {
+        paint(&mut h, x, y);
+    }
+    rest(&mut h);
+    let brick = canvas_glyphs(&h)[3].chars().nth(4).unwrap();
+    type_text(&mut h, "s");
+    drag_squares(&mut h, "rep-1-marked", (4, 3), &[(6, 3)], egui::Vec2::ZERO);
+    rest(&mut h);
+    shot(&mut h, "rep-2-list");
+    click_input(&mut h, "Catalog");
+    type_text(&mut h, "wooden wall");
+    key(&mut h, egui::Key::Enter);
+    rest(&mut h);
+    click(&mut h, "wooden wall");
+    rest(&mut h);
+    shot(&mut h, "rep-3-picked");
+    click(&mut h, "brick wall ×3");
+    rest(&mut h);
+    shot(&mut h, "rep-4-row");
+    click_footer(&mut h, "Replace with wooden wall");
+    rest(&mut h);
+    shot(&mut h, "rep-5-replaced");
+    let replaced = canvas_glyphs(&h);
+    assert_ne!(replaced[3].chars().nth(4), Some(brick));
+    assert_ne!(replaced[3].chars().nth(6), Some(brick));
+    assert_eq!(replaced[6].chars().nth(4), Some(brick));
+}
+
+#[test]
+#[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_paints_places_furniture_undoes_previews_saves_and_reopens() {
     let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
