@@ -796,7 +796,13 @@ fn a_novice_adds_an_item_group_with_the_placements_tool_and_the_catalog() {
     click(&mut h, "Placements");
     rest(&mut h);
     shot(&mut h, "card-1-tool");
-    drag_squares(&mut h, "card-2-dragging", (4, 3), &[(7, 5)], egui::Vec2::ZERO);
+    drag_squares(
+        &mut h,
+        "card-2-dragging",
+        (4, 3),
+        &[(7, 5)],
+        egui::Vec2::ZERO,
+    );
     rest(&mut h);
     click_input(&mut h, "Catalog");
     type_text(&mut h, "livingroom");

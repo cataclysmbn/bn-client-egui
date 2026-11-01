@@ -641,7 +641,9 @@ impl<M: GameModel> App<M> {
         pointer.pressed &= !busy;
         // A press on a region moves that region: the drag of the squares does not begin.
         pointer.pressed &= matches!(by, DragBy::Secondary(_))
-            || !pointer.over.is_some_and(|over| on_dragged_region(grid, over));
+            || !pointer
+                .over
+                .is_some_and(|over| on_dragged_region(grid, over));
         let run = drag::advance(mode, &mut held, pointer);
         let marker = |affordance: &Option<String>| {
             affordance.clone().map(|affordance| {
