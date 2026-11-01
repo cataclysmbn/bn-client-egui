@@ -803,10 +803,10 @@ fn a_novice_adds_an_item_group_with_the_placements_tool_and_the_catalog() {
     key(&mut h, egui::Key::Enter);
     rest(&mut h);
     shot(&mut h, "card-3-marked");
-    click(&mut h, "livingroom");
+    click(&mut h, "Livingroom");
     rest(&mut h);
     shot(&mut h, "card-4-picked");
-    click_footer(&mut h, "Add livingroom");
+    click_footer(&mut h, "Add Livingroom");
     rest(&mut h);
     shot(&mut h, "card-5-added");
     key_mod(&mut h, egui::Modifiers::CTRL, egui::Key::S);
