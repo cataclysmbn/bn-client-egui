@@ -2372,7 +2372,7 @@ fn the_map_editor_places_an_overmap_special_in_the_world_and_tests_it_there() {
 fn map_wall(h: &mut H) {
     show_advanced(h);
     open_catalog(h);
-    click(h, "Terrain");
+    click_tab(h, "Terrain");
     double_click(h, "brick wall");
     open_mapping(h);
     click_beside(h, "Symbol");
@@ -3061,6 +3061,7 @@ fn the_map_editor_adds_a_placement_from_a_marked_rectangle_and_removes_it() {
     rest(&mut h);
     open_map_editor(&mut h);
     let path = create_mapgen(&mut h, "zz_placement");
+    show_advanced(&mut h);
     type_text(&mut h, "s");
     paint(&mut h, 4, 3);
     paint(&mut h, 7, 5);
@@ -4588,6 +4589,7 @@ fn the_map_editor_select_tool_marks_the_squares_a_drag_spans() {
     rest(&mut h);
     open_map_editor(&mut h);
     create_mapgen(&mut h, "zz_select_drag");
+    show_advanced(&mut h);
     type_text(&mut h, "s");
     drag_squares(
         &mut h,
