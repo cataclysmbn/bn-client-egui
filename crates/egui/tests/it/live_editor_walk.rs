@@ -477,6 +477,19 @@ fn open_map_editor(h: &mut H) {
     wait_kind(h, "editor");
 }
 
+/// The map editor with Advanced mode on. The engine ignores `Show advanced settings` on the map editor's start page,
+/// where no document is open, so the choice, shared by both editors, is made in the vehicle editor first.
+fn open_advanced_map_editor(h: &mut H) {
+    click(h, "Editor");
+    click(h, "Vehicle editor");
+    wait_kind(h, "vehicle_editor");
+    rest(h);
+    show_advanced(h);
+    key(h, egui::Key::Escape);
+    rest(h);
+    open_map_editor(h);
+}
+
 /// Clicks the tab labelled `label` and waits until it is the selected one.
 fn click_tab(h: &mut H, label: &str) {
     let in_bar = |h: &H| {
@@ -581,6 +594,60 @@ fn fold_mapping(h: &mut H) {
     }
 }
 
+/// Whether the catalog of the legend column is open: its tabs are drawn.
+fn catalog_open(h: &H) -> bool {
+    h.root().children_recursive().any(|n| {
+        let a = n.accesskit_node();
+        a.role() == egui::accesskit::Role::Tab && a.label().as_deref() == Some("Terrain")
+    })
+}
+
+/// Folds the catalog when it is open.
+fn fold_catalog(h: &mut H) {
+    if catalog_open(h) {
+        click(h, "Catalog");
+        rest(h);
+    }
+}
+
+/// Opens the catalog when it is folded.
+fn open_catalog(h: &mut H) {
+    if !catalog_open(h) {
+        click(h, "Catalog");
+        rest(h);
+    }
+}
+
+/// The form of a new file in Advanced mode, opened, and the heading it is under: a document open folds it under
+/// `New mapgen file`, the start page heads it `New file`.
+fn open_new_file_form(h: &mut H) -> &'static str {
+    let exact = |h: &H, l: &str| {
+        h.root()
+            .children_recursive()
+            .any(|n| n.accesskit_node().label().as_deref() == Some(l))
+    };
+    let heading = ["New mapgen file", "New file"]
+        .into_iter()
+        .find(|l| exact(h, l))
+        .unwrap_or("New file");
+    fold_mapping(h);
+    // The catalog folded leaves the form below it the room of its fields.
+    fold_catalog(h);
+    if !exact(h, "Path") {
+        click(h, heading);
+        rest(h);
+    }
+    heading
+}
+
+/// Types `count` into the Export form's box labelled `label`, `Width` or `Height`.
+fn set_export_size(h: &mut H, label: &str, count: &str) {
+    click_beside(h, label);
+    replace_text(h, count);
+    key(h, egui::Key::Enter);
+    rest(h);
+}
+
 /// A new map `name` in a new mod of the profile's mods directory, `mod/name` or else named as the map, made from
 /// the editor's form with names alone, and its canvas.
 fn create_mapgen(h: &mut H, name: &str) -> std::path::PathBuf {
@@ -597,35 +664,7 @@ fn create_mapgen(h: &mut H, name: &str) -> std::path::PathBuf {
         .children_recursive()
         .all(|n| n.accesskit_node().label().as_deref() != Some("Name"));
     if asks_path {
-        // A document open folds the form under its heading, `New mapgen file` in Advanced mode.
-        let heading = ["New mapgen file", "New file"]
-            .into_iter()
-            .find(|l| {
-                find(h, l).is_some_and(|_| {
-                    h.root()
-                        .children_recursive()
-                        .any(|n| n.accesskit_node().label().as_deref() == Some(*l))
-                })
-            })
-            .unwrap_or(heading);
-        let drawn = |h: &H| {
-            h.root()
-                .children_recursive()
-                .any(|n| n.accesskit_node().label().as_deref() == Some("Path"))
-        };
-        fold_mapping(h);
-        // The catalog folded leaves the form below it the room of its fields.
-        if h.root()
-            .children_recursive()
-            .any(|n| n.accesskit_node().role() == egui::accesskit::Role::Tab)
-        {
-            click(h, "Catalog");
-            rest(h);
-        }
-        if !drawn(h) {
-            click(h, heading);
-            rest(h);
-        }
+        let heading = open_new_file_form(h);
         click_beside(h, &format!("{heading}/Path"));
         replace_text(h, &path.to_string_lossy());
         click(h, "Create");
@@ -994,7 +1033,7 @@ fn the_vehicle_editor_opens_a_prototype_installs_and_saves_a_mod_file() {
     shot(&mut h, "veh-16-renamed");
 
     // Saved as a mod file: the engine only writes under the game's data or a mod.
-    let path = crate::common::live::profile_dir().join("mods/zz_vehicle.json");
+    let path = crate::common::live::profile_dir().join("mods/zz_vehicle/zz_vehicle.json");
     click_footer(&mut h, "Save as");
     rest(&mut h);
     shot(&mut h, "veh-17-save-as-asks");
@@ -1003,8 +1042,8 @@ fn the_vehicle_editor_opens_a_prototype_installs_and_saves_a_mod_file() {
     rest(&mut h);
     shot(&mut h, "veh-18-saved");
 
-    // The edited design spawned beside the avatar, and looked at on the map the editor leaves for.
-    click_footer(&mut h, "Spawn");
+    // The edited design spawned beside the avatar by a test drive, and looked at on the map the editor leaves for.
+    click_button(&mut h, "Test drive");
     run_until(&mut h, "the map", 60, |h| {
         !h.state().model.busy() && top(h).as_deref() != Some("vehicle_editor")
     });
@@ -1062,7 +1101,7 @@ fn the_vehicle_editor_sets_the_ammunition_of_a_turret_from_the_part_tab() {
     shot(&mut h, "turret-3-part-tab-after");
 
     // Saved as a mod file, where the turret's part entry carries what was typed.
-    let path = crate::common::live::profile_dir().join("mods/zz_turret.json");
+    let path = crate::common::live::profile_dir().join("mods/zz_turret/zz_turret.json");
     click_footer(&mut h, "Save as");
     type_text(&mut h, &path.to_string_lossy());
     key(&mut h, egui::Key::Enter);
@@ -1174,19 +1213,18 @@ fn the_map_editor_creates_a_palette_maps_a_symbol_and_saves_it() {
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1290.0, 830.0));
     rest(&mut h);
-    open_map_editor(&mut h);
-    show_advanced(&mut h);
+    open_advanced_map_editor(&mut h);
     shot_at(&mut h, "pal-1-form", &sizes);
     // The kind select, opened by a click; its third option names the palette and relabels the id field.
-    click(&mut h, "Mapgen");
+    open_select(&mut h, "Kind");
     shot_at(&mut h, "pal-2-kinds", &sizes);
     click(&mut h, "Palette");
     assert!(find(&h, "Palette id").is_some(), "{:?}", labels(&h));
-    let path = crate::common::live::profile_dir().join("mods/zz_palette.json");
-    click_beside(&mut h, "New file/Path");
-    type_text(&mut h, &path.to_string_lossy());
+    let path = crate::common::live::profile_dir().join("mods/zz_palette/zz_palette.json");
+    click_beside(&mut h, "New mapgen file/Path");
+    replace_text(&mut h, &path.to_string_lossy());
     click_beside(&mut h, "Palette id");
-    type_text(&mut h, "zz_walk_palette");
+    replace_text(&mut h, "zz_walk_palette");
     shot_at(&mut h, "pal-3-form-filled", &sizes);
     click(&mut h, "Create");
     if find(&h, "Continue").is_some() {
@@ -1363,7 +1401,7 @@ fn the_map_editor_exports_two_squares_stamps_pasted_mapgen_and_takes_it_back() {
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1280.0, 800.0));
     rest(&mut h);
-    open_map_editor(&mut h);
+    open_advanced_map_editor(&mut h);
     shot_at(&mut h, "imp-1-editor", &sizes);
     dump(&h, "the map editor");
     let unstamp_enabled = |h: &H| {
@@ -1376,18 +1414,23 @@ fn the_map_editor_exports_two_squares_stamps_pasted_mapgen_and_takes_it_back() {
     };
     assert_eq!(unstamp_enabled(&h), Some(false));
 
-    // The export is two squares wide: the count prompt takes its digit and OK.
-    click_footer(&mut h, "Export width");
+    // The export is two squares wide: the Export form's width box takes its digit and keeps it.
     shot_at(&mut h, "imp-2-width-asks", &sizes);
-    replace_text(&mut h, "2");
+    set_export_size(&mut h, "Width", "2");
     shot_at(&mut h, "imp-3-width-typed", &sizes);
-    click(&mut h, "OK");
-    click_footer(&mut h, "Export width");
+    let width = h
+        .root()
+        .children_recursive()
+        .find(|n| {
+            let a = n.accesskit_node();
+            a.role() == egui::accesskit::Role::TextInput && a.label().as_deref() == Some("Width")
+        })
+        .and_then(|n| n.accesskit_node().value().map(|v| v.to_string()));
+    assert_eq!(width.as_deref(), Some("2"));
     shot_at(&mut h, "imp-4-width-kept", &sizes);
-    click(&mut h, "Stay");
 
     // Exported to a new mod file, whose first entry names the avatar's overmap terrain.
-    let path = crate::common::live::profile_dir().join("mods/zz_export.json");
+    let path = crate::common::live::profile_dir().join("mods/zz_export/zz_export.json");
     click_footer(&mut h, "Export mapgen here");
     type_text(&mut h, &path.to_string_lossy());
     shot_at(&mut h, "imp-5-path", &sizes);
@@ -1409,6 +1452,16 @@ fn the_map_editor_exports_two_squares_stamps_pasted_mapgen_and_takes_it_back() {
             .filter_map(|n| n.accesskit_node().value().map(|v| v.to_string()))
             .find(|v| v.contains("om_terrain"))
     };
+    fold_catalog(&mut h);
+    // The JSON form folded leaves the stamp form below it the room.
+    click(&mut h, "JSON value");
+    rest(&mut h);
+    click(&mut h, "Export");
+    rest(&mut h);
+    if find(&h, "Mapgen to stamp").is_none() {
+        click(&mut h, "Stamp mapgen text");
+        rest(&mut h);
+    }
     click_beside(&mut h, "Mapgen to stamp");
     h.event(egui::Event::Paste(exported.clone()));
     h.run_steps(3);
@@ -2058,7 +2111,10 @@ fn the_map_editor_draws_and_erases_the_squares_of_an_overmap_special_and_saves_t
     // A drag from the field into the room beside it, one stroke.
     let anchor_of = |h: &H| {
         let (_, _, cells) = canvas_grid(h);
-        let house = cells.iter().find(|c| c.3 == "house").expect("a house");
+        let house = cells
+            .iter()
+            .find(|c| c.3.starts_with("house"))
+            .unwrap_or_else(|| panic!("a house in {cells:?}"));
         (house.0, house.1)
     };
     let at = |h: &H, x: u32, y: u32| {
@@ -2097,7 +2153,7 @@ fn the_map_editor_draws_and_erases_the_squares_of_an_overmap_special_and_saves_t
     assert!(
         forests(&drawn)
             .iter()
-            .all(|l| !l.is_empty() && l != "field"),
+            .all(|l| !l.is_empty() && !l.starts_with("field")),
         "{drawn:?}"
     );
 
@@ -2127,7 +2183,10 @@ fn the_map_editor_draws_and_erases_the_squares_of_an_overmap_special_and_saves_t
     shot_at(&mut h, "sd-7-erased", &sizes);
     let (_, _, erased) = canvas_grid(&h);
     println!("after erase {erased:?}");
-    assert!(erased.iter().all(|c| c.3 != "house"), "{erased:?}");
+    assert!(
+        erased.iter().all(|c| !c.3.starts_with("house")),
+        "{erased:?}"
+    );
 
     // Saved, the file holds the forest squares and not the house.
     key_mod(&mut h, egui::Modifiers::CTRL, egui::Key::S);
@@ -2230,6 +2289,7 @@ fn the_map_editor_places_an_overmap_special_in_the_world_and_tests_it_there() {
 /// A wall symbol `#` mapped to the catalog's brick wall in the open mapgen, as the first walk maps it.
 fn map_wall(h: &mut H) {
     show_advanced(h);
+    open_catalog(h);
     click(h, "Terrain");
     double_click(h, "brick wall");
     open_mapping(h);
@@ -2356,15 +2416,14 @@ fn the_map_editor_makes_a_nested_chunk_and_moves_a_legend_into_a_palette() {
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1280.0, 800.0));
     rest(&mut h);
-    open_map_editor(&mut h);
-    show_advanced(&mut h);
+    open_advanced_map_editor(&mut h);
 
     // The form's kind select names a nested chunk, relabels the id field and sizes the chunk.
-    click(&mut h, "Mapgen");
+    open_select(&mut h, "Kind");
     click(&mut h, "Nested chunk");
     assert!(find(&h, "Chunk id").is_some(), "{:?}", labels(&h));
-    let nested = crate::common::live::profile_dir().join("mods/zz_nested.json");
-    click_beside(&mut h, "New file/Path");
+    let nested = crate::common::live::profile_dir().join("mods/zz_nested/zz_nested.json");
+    click_beside(&mut h, "New mapgen file/Path");
     replace_text(&mut h, &nested.to_string_lossy());
     click_beside(&mut h, "Chunk id");
     replace_text(&mut h, "zz_walk_chunk");
@@ -2387,7 +2446,8 @@ fn the_map_editor_makes_a_nested_chunk_and_moves_a_legend_into_a_palette() {
     );
 
     // A mapgen with a wall symbol of its own, whose legend moves into a palette the mapgen then names.
-    click(&mut h, "Nested chunk");
+    open_new_file_form(&mut h);
+    open_select(&mut h, "Kind");
     click(&mut h, "Mapgen");
     let path = create_mapgen(&mut h, "zz_extract");
     map_wall(&mut h);
@@ -2586,7 +2646,7 @@ fn the_vehicle_editor_turns_a_preview_reloads_a_file_and_asks_before_leaving() {
     double_click(&mut h, "Bicycle");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
-    let path = crate::common::live::profile_dir().join("mods/zz_veh_reload.json");
+    let path = crate::common::live::profile_dir().join("mods/zz_veh_reload/zz_veh_reload.json");
     click_footer(&mut h, "Save as");
     type_text(&mut h, &path.to_string_lossy());
     key(&mut h, egui::Key::Enter);
@@ -2714,28 +2774,20 @@ fn the_map_editor_exports_a_spawned_vehicle_as_a_placement() {
     double_click(&mut h, "Bicycle");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
-    // Spawn leaves for the map, where the map editor's action opens it again.
-    click_footer(&mut h, "Spawn");
-    run_until(&mut h, "the map", 120, |h| {
-        h.state()
-            .model
-            .screens()
-            .last()
-            .is_some_and(|s| s.role == bn_client_egui::protocol::ScreenRole::Map)
-    });
+    // Spawn puts the design east of the avatar and stays; Escape leaves for the map editor that opened the editor.
+    menu(&mut h, "World", "Spawn");
     rest(&mut h);
     shot_at(&mut h, "xv-1-spawned", &sizes);
-    assert!(h.state_mut().model.invoke_action("editor"));
+    key(&mut h, egui::Key::Escape);
     wait_kind(&mut h, "editor");
     rest(&mut h);
 
     // Two squares wide and high around the avatar's, so the bicycle east of it is inside whatever its square.
-    for (label, count) in [("Export width", "2"), ("Export height", "2")] {
-        click_footer(&mut h, label);
-        replace_text(&mut h, count);
-        click(&mut h, "OK");
+    for label in ["Width", "Height"] {
+        set_export_size(&mut h, label, "2");
     }
-    let path = crate::common::live::profile_dir().join("mods/zz_export_vehicle.json");
+    let path =
+        crate::common::live::profile_dir().join("mods/zz_export_vehicle/zz_export_vehicle.json");
     click_footer(&mut h, "Export mapgen here");
     type_text(&mut h, &path.to_string_lossy());
     key(&mut h, egui::Key::Enter);
@@ -2870,12 +2922,11 @@ fn the_map_editor_makes_a_new_overmap_special_and_connects_it() {
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1920.0, 1080.0));
     rest(&mut h);
-    open_map_editor(&mut h);
-    show_advanced(&mut h);
-    click(&mut h, "Mapgen");
+    open_advanced_map_editor(&mut h);
+    open_select(&mut h, "Kind");
     click(&mut h, "Overmap special");
-    let path = crate::common::live::profile_dir().join("mods/zz_new_special.json");
-    click_beside(&mut h, "New file/Path");
+    let path = crate::common::live::profile_dir().join("mods/zz_new_special/zz_new_special.json");
+    click_beside(&mut h, "New mapgen file/Path");
     replace_text(&mut h, &path.to_string_lossy());
     click_beside(&mut h, "Special id");
     replace_text(&mut h, "zz_walk_new_special");
@@ -2938,7 +2989,12 @@ fn the_map_editor_adds_a_placement_from_a_marked_rectangle_and_removes_it() {
     settle(&mut h);
 
     // An item placement: the form's default kind, its other members as JSON; its button is named as its heading.
-    click_beside(&mut h, "Add placement/Value");
+    fold_catalog(&mut h);
+    if find(&h, "Add placement").is_none() {
+        click(&mut h, "New placement");
+        rest(&mut h);
+    }
+    click_beside(&mut h, "New placement/Value");
     type_text(&mut h, r#"{"item": "bedroom", "chance": 100}"#);
     click_button(&mut h, "Add placement");
     rest(&mut h);
@@ -3144,7 +3200,7 @@ fn a_modder_opens_draws_undoes_saves_tests_and_leaves_the_map_editor_workspace()
     shot_both(&mut h, "ws-map-07b-loot");
 
     // Saved as a mod file from the File menu, which asks for the path as the footer would.
-    let path = crate::common::live::profile_dir().join("mods/zz_ws_house.json");
+    let path = crate::common::live::profile_dir().join("mods/zz_ws_house/zz_ws_house.json");
     menu(&mut h, "File", "Save as");
     shot_both(&mut h, "ws-map-08-save-as-asks");
     replace_text(&mut h, &path.to_string_lossy());
