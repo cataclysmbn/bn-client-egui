@@ -344,26 +344,48 @@ fn a_log_list_shows_several_rows_over_the_status_line() {
     }
 }
 
+const TITLE: &str = "/home/someone/games/cataclysm/data/json/mapgen/house/2Story01.json";
+
 #[test]
-fn a_status_fact_too_long_for_the_line_wraps_whole_with_its_value() {
-    let facts = (0..10)
-        .map(|n| (format!("Fact number {n}"), format!("Value {n}")))
+fn a_status_line_too_long_for_the_window_stays_one_line_and_cuts_its_longest_values() {
+    let facts = (0..7)
+        .map(|n| (format!("Fact {n}"), format!("Value {n}")))
+        .chain([(
+            "Placed by".to_string(),
+            "Not placed by any overmap terrain or special yet".repeat(2),
+        )])
         .collect::<Vec<_>>();
-    let h = shown_with(SIZES[0], |parts| {
-        let stats = facts
+    for size in SIZES {
+        let h = shown_with(size, |parts| {
+            let stats = facts
+                .iter()
+                .map(|(label, value)| json!({"key": label, "label": label, "value": value}))
+                .collect::<Vec<_>>();
+            parts[5] = json!({"id": "ws:status", "kind": "panel", "slot": "status",
+                "title": TITLE, "stats": stats});
+        });
+        let line = rect(&h, "Fact 0").center().y;
+        let off = facts
             .iter()
-            .map(|(label, value)| json!({"key": label, "label": label, "value": value}))
+            .flat_map(|(label, value)| [label, value])
+            .map(|t| (t, rect(&h, t)))
+            .filter(|(_, r)| (r.center().y - line).abs() > 2.0 || r.right() > size.x)
             .collect::<Vec<_>>();
-        parts[5] = json!({"id": "ws:status", "kind": "panel", "slot": "status",
-            "title": "/home/someone/games/cataclysm/data/json/mapgen/house/2Story01.json", "stats": stats});
-    });
-    let apart = facts
-        .iter()
-        .filter(|(label, value)| {
-            (rect(&h, label).center().y - rect(&h, value).center().y).abs() > 2.0
-        })
-        .collect::<Vec<_>>();
-    assert!(apart.is_empty(), "{apart:?}");
+        assert!(off.is_empty(), "{size:?}: off the line: {off:?}");
+        let short = facts
+            .iter()
+            .take(7)
+            .flat_map(|(label, value)| [label, value]);
+        let cut = short
+            .filter(|t| elided(&h, t) != [false])
+            .collect::<Vec<_>>();
+        assert!(cut.is_empty(), "{size:?}: short facts cut: {cut:?}");
+        let long = [facts[7].1.as_str(), TITLE].map(|t| elided(&h, t));
+        assert!(
+            size.x > 1280.0 || long == [vec![true], vec![true]],
+            "{size:?}: the long values are cut: {long:?}"
+        );
+    }
 }
 
 /// Writes PNGs of the workspace to `$SHOT_DIR`; needs a Vulkan adapter, so it only runs when asked:
@@ -1092,8 +1114,12 @@ fn catalog_workspace() -> Value {
     let mut catalog = list("ws:catalog", "Catalog", &rows, "palette");
     catalog["filterable"] = true.into();
     catalog["affordances"] = json!(["ws:search"]);
-    parts[2] = stats("ws:legend", "Legend", "palette", 2);
-    parts.push(stats("ws:mapping", "Mapping", "palette", 3));
+    let symbols = (0..2).map(|n| format!("Symbol {n}")).collect::<Vec<_>>();
+    let symbols = symbols.iter().map(String::as_str).collect::<Vec<_>>();
+    parts[2] = list("ws:legend", "Legend", &symbols, "palette");
+    let mut mapping = stats("ws:mapping", "Mapping", "palette", 3);
+    mapping["collapsed"] = true.into();
+    parts.push(mapping);
     parts.push(catalog);
     let outline = (0..40).map(|n| format!("Mapgen {n}")).collect::<Vec<_>>();
     let outline = outline.iter().map(String::as_str).collect::<Vec<_>>();
@@ -1121,12 +1147,12 @@ fn a_searchable_list_after_other_parts_of_the_palette_shows_its_search_box_and_r
         h.run_steps(30);
         crate::common::settle_windows(&mut h);
         let search = h.get_by_role_and_label(egui::accesskit::Role::TextInput, "Catalog");
-        let rows = (0..4)
+        let rows = (0..8)
             .map(|n| rect(&h, &format!("Entry {n}")))
             .collect::<Vec<_>>();
         let (heads, window) = ([rect(&h, "Entries"), rect(&h, "Properties")], size.y - 40.0);
         assert!(
-            search.rect().bottom() < window && rows[3].bottom() < window,
+            search.rect().bottom() < window && rows[7].bottom() <= rect(&h, "Entries").top(),
             "{size:?}: search {:?}, rows {rows:?} below the fold",
             search.rect()
         );
