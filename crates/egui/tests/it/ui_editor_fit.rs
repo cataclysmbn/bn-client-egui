@@ -638,10 +638,10 @@ fn a_catalogs_ids_are_whole_while_their_labels_leave_room_at_1920_by_1080() {
         crate::common::staged(json!([editor()])).0,
     );
     h.run_steps(12);
-    let ids = painted_elided(&h, "t_adobe_brick_floor");
-    let labels = painted_elided(&h, "adobe floor (t_adobe_brick_floor)");
+    let ids = painted_elided(&h, "t_door_locked");
+    let labels = painted_elided(&h, "closed wood door (locked)");
     assert!(
-        ids.iter().any(|(id, _)| id == "t_adobe_brick_floor") && labels.iter().all(|(_, cut)| !cut),
+        ids.iter().any(|(id, _)| id == "t_door_locked") && labels.iter().all(|(_, cut)| !cut),
         "ids {ids:?} labels {labels:?}"
     );
     assert!(
