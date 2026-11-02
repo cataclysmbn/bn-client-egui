@@ -253,6 +253,18 @@ mod tests {
         }
     }
 
+    /// The nightly bundle names the client `cataclysm-bn`, a name the engine also goes by.
+    #[test]
+    fn a_client_named_like_the_engine_never_starts_itself() {
+        let d = Dirs::new("self");
+        let client = d.engine("bin/cataclysm-bn");
+        let mut s = search(&d);
+        s.exe = Some(client.clone());
+        assert!(resolve(None, &s).is_err());
+        let engine = d.engine("bin/cataclysm-bn-tiles");
+        assert_eq!(resolve(None, &s).unwrap(), engine);
+    }
+
     #[test]
     fn explicit_flag_beats_everything() {
         let d = Dirs::new("flag");
