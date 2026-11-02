@@ -1243,20 +1243,48 @@ fn visible_entries(h: &H, size: egui::Vec2) -> usize {
 }
 
 #[test]
-fn a_list_of_the_side_column_shows_at_least_five_rows_beside_an_open_form() {
+fn a_list_of_the_side_column_shows_at_least_five_rows_under_tabs_beside_an_open_form() {
+    let kinds = [
+        "Terrain",
+        "Furniture",
+        "Traps",
+        "Fields",
+        "Items",
+        "Item groups",
+        "Monsters",
+    ];
+    let kinds = kinds
+        .iter()
+        .chain(&["Monster groups", "Vehicles", "NPCs", "Nested chunks"]);
+    let tabs = kinds
+        .enumerate()
+        .map(|(n, k)| json!({"id": format!("tab:{n}"), "label": k, "selected": n == 0, "enabled": true}))
+        .collect::<Vec<_>>();
     for size in [egui::vec2(1290.0, 830.0), egui::vec2(1280.0, 800.0)] {
-        let mut screen = catalog_workspace();
-        let parts = screen["root"]["children"].as_array_mut().unwrap();
-        parts.iter_mut().for_each(|p| {
-            if p["id"] == "ws:mapping" {
-                *p = stats("ws:mapping", "Mapping", "palette", 9);
-            }
-        });
-        let (app, _) = crate::common::staged(crate::common::over_map(screen));
-        let mut h = crate::common::themed_harness(size, app);
-        h.run_steps(30);
-        crate::common::settle_windows(&mut h);
-        let shown = visible_entries(&h, size);
-        assert!(shown >= 5, "{size:?}: {shown} catalog rows shown");
+        for open in [false, true] {
+            let mut screen = catalog_workspace();
+            let parts = screen["root"]["children"].as_array_mut().unwrap();
+            parts.iter_mut().for_each(|p| match p["id"].as_str() {
+                Some("ws:mapping") => {
+                    *p = stats("ws:mapping", "Mapping", "palette", 4);
+                    p["collapsed"] = (!open).into();
+                }
+                Some("ws:catalog") => {
+                    let child = p.take();
+                    *p = json!({"id": "ws:kinds", "kind": "tabs", "label": "Kinds", "slot": "palette",
+                        "tabs": tabs, "child": child});
+                }
+                _ => {}
+            });
+            let (app, _) = crate::common::staged(crate::common::over_map(screen));
+            let mut h = crate::common::themed_harness(size, app);
+            h.run_steps(30);
+            crate::common::settle_windows(&mut h);
+            let shown = visible_entries(&h, size);
+            assert!(
+                shown >= 5,
+                "{size:?} mapping open {open}: {shown} catalog rows shown"
+            );
+        }
     }
 }

@@ -8,7 +8,7 @@ use bn_client_core::localise::tr;
 const PREFETCH: usize = 20;
 
 /// The fewest rows a list keeps room for, however little the window has left.
-const MIN_ROWS: f32 = 3.0;
+const MIN_ROWS: f32 = 5.0;
 
 /// A list row's item and the square it is drawn in.
 pub(super) struct RowIcon {
@@ -201,7 +201,9 @@ impl<M: GameModel> App<M> {
             true => self.screens.column_caps.borrow().get(id).copied(),
             false => None,
         };
-        let list_height = cap.map_or(list_height, |cap| cap.min(wanted).max(MIN_ROWS * step));
+        let list_height = cap.map_or(list_height, |cap| {
+            cap.min(wanted).max(MIN_ROWS.min(list.total as f32) * step)
+        });
         // The engine may show no more than `rows_shown` rows at once, scrolling the rest, so the parts beside the
         // list keep their room.
         let most = list
