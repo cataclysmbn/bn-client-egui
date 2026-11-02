@@ -1334,3 +1334,31 @@ fn the_tool_tabs_wrap_between_tabs_and_never_inside_one() {
         );
     }
 }
+
+#[test]
+fn a_tool_of_the_left_column_with_a_two_word_name_stays_on_one_line() {
+    let names = [
+        ("Select", ""),
+        ("Pencil", ""),
+        ("Filled rectangle", ""),
+        ("Eyedropper", ""),
+        ("Mirror left and right", "Off"),
+        ("Mirror front and back", "Off"),
+    ];
+    for size in SIZES {
+        let h = shown_with(size, |parts| {
+            let mut tools = list("ws:tools", "Tools", &names.map(|(n, _)| n), "tools");
+            tools["columns"] = json!([{"key": "state", "label": "State"}]);
+            for (row, (_, state)) in tools["rows"].as_array_mut().unwrap().iter_mut().zip(names) {
+                row["hotkey"] = "u".into();
+                row["columns"] = json!([{"key": "state", "label": "State", "value": state}]);
+            }
+            parts[0] = tools;
+        });
+        let (plain, filled) = (rect(&h, "Pencil"), rect(&h, "Filled rectangle"));
+        assert!(
+            filled.height() < plain.height() * 1.5,
+            "{size:?}: {filled:?} against {plain:?}"
+        );
+    }
+}
