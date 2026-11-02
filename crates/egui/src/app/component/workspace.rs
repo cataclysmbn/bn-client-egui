@@ -473,7 +473,29 @@ impl<M: GameModel> App<M> {
             .iter()
             .map(|w| w + SEPARATOR + 3.0 * gap)
             .sum::<f32>();
-        let given = shares(ui.available_width() - whole - gap, &widths, CUT_LEAST);
+        // A cut value fills its share only to a whole glyph, so what it leaves over goes to the other cut values
+        // while the line still holds.
+        let room = ui.available_width() - whole - 1.0;
+        let used = |given: &[f32]| {
+            given
+                .iter()
+                .zip(&values)
+                .zip(&widths)
+                .map(|((g, v), w)| match g < w {
+                    true => cut_width(ui, v, &font, *g),
+                    false => *w,
+                })
+                .sum::<f32>()
+        };
+        let mut given = shares(room, &widths, CUT_LEAST);
+        for _ in 0..4 {
+            let spare = room - used(&given);
+            let more = shares(room + spare, &widths, CUT_LEAST);
+            if spare < 1.0 || used(&more) > room {
+                break;
+            }
+            given = more;
+        }
         let value = |ui: &mut egui::Ui, text: egui::RichText, i: usize| match given[i] < widths[i] {
             true => {
                 let room = egui::vec2(given[i], ui.available_height());

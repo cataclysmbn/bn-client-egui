@@ -46,7 +46,7 @@ use grid::*;
 use intent::*;
 use list::*;
 use measure::*;
-pub(super) use measure::{control_line, text_width};
+pub(super) use measure::{control_line, cut_width, text_width};
 pub(super) use overmap::WorldMap;
 use overmap::*;
 use panel::*;
