@@ -4864,17 +4864,6 @@ fn step(h: &mut H, name: &str) {
         .unwrap();
 }
 
-/// Types `words` into the search box of the catalog and clicks the row `row`; a box that holds an earlier search has it
-/// selected first, as Ctrl+A does.
-fn catalog_pick(h: &mut H, words: &str, row: &str, earlier: bool) {
-    click_input(h, "Catalog");
-    if earlier {
-        key_mod(h, egui::Modifiers::COMMAND, egui::Key::A);
-    }
-    type_text(h, words);
-    click(h, row);
-}
-
 /// A novice builds a kitchen house from the main menu in Simple mode with the mouse and names alone.
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
@@ -4895,7 +4884,7 @@ fn a_novice_builds_a_house_within_forty_clicks() {
     step(&mut h, "house-03-created");
 
     // Walls: a brick wall in hand, a room dragged from corner to corner.
-    catalog_pick(&mut h, "brick wall", "brick wall", false);
+    click_catalog(&mut h, "brick wall");
     step(&mut h, "house-04-wall-in-hand");
     click_tab(&mut h, "Room");
     step(&mut h, "house-05-room-tool");
@@ -4909,13 +4898,13 @@ fn a_novice_builds_a_house_within_forty_clicks() {
     step(&mut h, "house-06-room-drawn");
 
     // A door in the south wall: one click on its square.
-    catalog_pick(&mut h, "door", "closed wood door", true);
+    click_catalog(&mut h, "closed wood door");
     click_tab(&mut h, "Pencil");
     paint(&mut h, 11, 14);
     step(&mut h, "house-08-door");
 
     // The kitchen floor in the north-west corner, a filled rectangle.
-    catalog_pick(&mut h, "linoleum", "linoleum", true);
+    click_catalog(&mut h, "linoleum tile");
     step(&mut h, "house-09-floor-in-hand");
     click_tab(&mut h, "Filled rectangle");
     drag_squares(
@@ -4929,7 +4918,7 @@ fn a_novice_builds_a_house_within_forty_clicks() {
 
     // A counter along the kitchen's north wall.
     click_tab(&mut h, "Furniture");
-    catalog_pick(&mut h, "counter", "counter", false);
+    click_catalog(&mut h, "counter");
     step(&mut h, "house-11-counter-in-hand");
     click_tab(&mut h, "Line");
     drag_squares(
@@ -4952,10 +4941,8 @@ fn a_novice_builds_a_house_within_forty_clicks() {
         egui::Vec2::ZERO,
     );
     step(&mut h, "house-14-kitchen-marked");
-    click_input(&mut h, "Catalog");
-    type_text(&mut h, "kitchen");
-    step(&mut h, "house-15-kitchen-searched");
-    click(&mut h, "Kitchen");
+    step(&mut h, "house-15-kitchen-listed");
+    click_catalog(&mut h, "Kitchen");
     step(&mut h, "house-16-kitchen-picked");
     click_footer(&mut h, "Add Kitchen");
     step(&mut h, "house-17-kitchen-added");
@@ -5032,6 +5019,32 @@ fn a_novice_builds_a_house_within_forty_clicks() {
         "the house took {} clicks, the budget is 40: {b:?}",
         b.clicks
     );
+    assert_eq!(
+        b.typed,
+        "Kitchen house".len(),
+        "only the name is typed: {b:?}"
+    );
+}
+
+/// Clicks the row of the map editor's catalog labelled exactly `label`, the wheel bringing it into view.
+fn click_catalog(h: &mut H, label: &str) {
+    let row = |h: &H| {
+        h.root()
+            .children_recursive()
+            .skip_while(|n| {
+                let a = n.accesskit_node();
+                !(a.role() == egui::accesskit::Role::TextInput
+                    && a.label().as_deref() == Some("Catalog"))
+            })
+            .take_while(|n| n.accesskit_node().label().as_deref() != Some("Catalog page"))
+            .find(|n| {
+                let a = n.accesskit_node();
+                a.role() == egui::accesskit::Role::Button && a.label().as_deref() == Some(label)
+            })
+            .map(|n| n.rect())
+    };
+    let at = click_stable(h, label, row);
+    click_at(h, at.center());
 }
 
 /// Clicks the row of the vehicle editor's part list labelled exactly `label`: the list sits between its search box and
@@ -5164,9 +5177,6 @@ fn a_novice_builds_a_car_within_twenty_five_clicks() {
     step(&mut h, "car-10-engine-placed");
     click_tab(&mut h, "Fuel & batteries");
     step(&mut h, "car-11-fuel-tab");
-    click_input(&mut h, "Parts");
-    type_text(&mut h, "tank");
-    step(&mut h, "car-12-tank-searched");
     click_part(&mut h, "vehicle tank (60L)");
     click_mount(&mut h, (-1, 0));
     step(&mut h, "car-13-tank-placed");
@@ -5234,4 +5244,5 @@ fn a_novice_builds_a_car_within_twenty_five_clicks() {
         "the car took {} clicks, the budget is 25: {b:?}",
         b.clicks
     );
+    assert_eq!(b.typed, "Family car".len(), "only the name is typed: {b:?}");
 }

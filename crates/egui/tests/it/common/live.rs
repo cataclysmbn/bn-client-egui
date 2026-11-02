@@ -35,13 +35,28 @@ thread_local! {
     static PROFILE: std::cell::RefCell<std::path::PathBuf> = std::cell::RefCell::default();
     /// The profile `reserve_profile` set aside for the next engine this thread spawns.
     static RESERVED: std::cell::RefCell<Option<std::path::PathBuf>> = std::cell::RefCell::default();
+    /// The profiles this test thread made, removed when the test ends.
+    static MADE: MadeProfiles = MadeProfiles::default();
+}
+
+#[derive(Default)]
+struct MadeProfiles(std::cell::RefCell<Vec<std::path::PathBuf>>);
+
+impl Drop for MadeProfiles {
+    fn drop(&mut self) {
+        for dir in self.0.borrow().iter() {
+            let _ = std::fs::remove_dir_all(dir);
+        }
+    }
 }
 
 /// A profile directory no engine of this process has had yet.
 fn new_profile() -> std::path::PathBuf {
     static SPAWNED: AtomicUsize = AtomicUsize::new(0);
     let n = SPAWNED.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("bn-live-{}-{n}", std::process::id()))
+    let dir = std::env::temp_dir().join(format!("bn-live-{}-{n}", std::process::id()));
+    MADE.with(|made| made.0.borrow_mut().push(dir.clone()));
+    dir
 }
 
 /// The profile directory the next engine this test spawns will have, for files it must find there at its start.
