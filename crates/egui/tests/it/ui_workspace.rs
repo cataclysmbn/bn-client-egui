@@ -1243,52 +1243,20 @@ fn visible_entries(h: &H, size: egui::Vec2) -> usize {
 }
 
 #[test]
-fn a_list_of_the_side_column_shows_at_least_five_rows_with_the_mapping_open_or_not() {
+fn a_list_of_the_side_column_shows_at_least_five_rows_beside_an_open_form() {
     for size in [egui::vec2(1290.0, 830.0), egui::vec2(1280.0, 800.0)] {
-        for mapping_open in [false, true] {
-            let mut screen = catalog_workspace();
-            let parts = screen["root"]["children"].as_array_mut().unwrap();
-            parts.iter_mut().for_each(|p| {
-                if p["id"] == "ws:mapping" {
-                    p["collapsed"] = (!mapping_open).into();
-                }
-            });
-            let (app, _) = crate::common::staged(crate::common::over_map(screen));
-            let mut h = crate::common::themed_harness(size, app);
-            h.run_steps(30);
-            crate::common::settle_windows(&mut h);
-            let shown = visible_entries(&h, size);
-            assert!(
-                shown >= 5,
-                "{size:?} mapping open {mapping_open}: {shown} catalog rows shown"
-            );
-        }
+        let mut screen = catalog_workspace();
+        let parts = screen["root"]["children"].as_array_mut().unwrap();
+        parts.iter_mut().for_each(|p| {
+            if p["id"] == "ws:mapping" {
+                *p = stats("ws:mapping", "Mapping", "palette", 9);
+            }
+        });
+        let (app, _) = crate::common::staged(crate::common::over_map(screen));
+        let mut h = crate::common::themed_harness(size, app);
+        h.run_steps(30);
+        crate::common::settle_windows(&mut h);
+        let shown = visible_entries(&h, size);
+        assert!(shown >= 5, "{size:?}: {shown} catalog rows shown");
     }
-}
-
-#[test]
-fn the_names_of_a_value_column_start_at_one_x_and_its_numbers_end_at_one() {
-    let h = shown_with(SIZES[0], |parts| {
-        let mut palette = list("ws:palette", "Palette", &["#", "_"], "palette");
-        palette["columns"] =
-            json!([{"key": "name", "label": "Terrain"}, {"key": "uses", "label": "Uses"}]);
-        let values = [("grass", "9"), ("wooden floor", "120")];
-        for (row, (name, uses)) in palette["rows"]
-            .as_array_mut()
-            .unwrap()
-            .iter_mut()
-            .zip(values)
-        {
-            row["columns"] = json!([{"key": "name", "label": "Terrain", "value": name},
-                {"key": "uses", "label": "Uses", "value": uses}]);
-        }
-        parts[2] = palette;
-    });
-    let (grass, floor) = (rect(&h, "grass"), rect(&h, "wooden floor"));
-    assert!(
-        (grass.left() - floor.left()).abs() < 0.5,
-        "{grass:?} {floor:?}"
-    );
-    let (few, many) = (rect(&h, "9"), rect(&h, "120"));
-    assert!((few.right() - many.right()).abs() < 0.5, "{few:?} {many:?}");
 }

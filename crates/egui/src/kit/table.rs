@@ -235,8 +235,6 @@ pub fn section(mut row: TableRow, widths: &Widths, across: egui::Rect, title: St
 pub fn aligned(ui: &mut egui::Ui, words: bool, text: impl Into<egui::WidgetText>) {
     match words {
         true => {
-            // The column gap a right-aligned value has before it.
-            ui.add_space(tokens::COLUMN_GAP - tokens::ITEM_GAP);
             ui.add(egui::Label::new(text).truncate().selectable(false));
         }
         false => right_aligned(ui, text),
