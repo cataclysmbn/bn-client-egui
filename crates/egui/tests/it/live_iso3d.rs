@@ -61,7 +61,7 @@ fn the_town_in_3d_from_every_side_and_what_a_frame_costs() {
     let engine = std::env::var_os("BN_ENGINE").expect("set BN_ENGINE");
     let root =
         game_root(engine.as_ref(), std::env::var_os("BN_ROOT").map(Into::into)).expect("game root");
-    let dir = std::env::temp_dir().join(format!("bn-iso3d-{}", std::process::id()));
+    let dir = crate::common::scratch("iso3d");
     std::fs::create_dir_all(&dir).unwrap();
     let settings = dir.join("settings.json");
     // No "three_d": an isometric tileset is drawn in 3D by itself.
@@ -420,7 +420,7 @@ fn a_step_key_moves_the_avatar_the_way_it_points_on_the_screen_at_every_yaw() {
     let engine = std::env::var_os("BN_ENGINE").expect("set BN_ENGINE");
     let root =
         game_root(engine.as_ref(), std::env::var_os("BN_ROOT").map(Into::into)).expect("game root");
-    let dir = std::env::temp_dir().join(format!("bn-iso3d-steps-{}", std::process::id()));
+    let dir = crate::common::scratch("iso3d-steps");
     std::fs::create_dir_all(&dir).unwrap();
     let settings = dir.join("settings.json");
     std::fs::write(&settings, r#"{"tiles":true,"tileset":"Ultica_iso"}"#).unwrap();

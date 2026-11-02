@@ -14,7 +14,7 @@ use std::collections::BTreeMap;
 #[ignore = "requires BN_ENGINE and a game root with the Ultica_iso tileset"]
 fn an_isometric_tileset_on_the_flat_map_and_the_layers_it_cannot_draw() {
     let root = root();
-    let dir = std::env::temp_dir().join(format!("bn-iso2d-{}", std::process::id()));
+    let dir = crate::common::scratch("iso2d");
     std::fs::create_dir_all(&dir).unwrap();
     let settings = dir.join("settings.json");
     let tileset = std::env::var("BN_ISO_TILESET").unwrap_or("Ultica_iso".into());

@@ -38,7 +38,7 @@ fn drawn_cells(h: &H, id: &str) -> usize {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_vehicle_editor_opens_installs_and_undoes() {
-    let dir = std::env::temp_dir().join(format!("bn-vehicle-editor-{}", std::process::id()));
+    let dir = crate::common::scratch("vehicle-editor");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     invoke(&mut h, "menu:tab", row("editor"));

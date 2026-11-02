@@ -11,7 +11,7 @@ use egui_kittest::kittest::{NodeT, Queryable};
 const SIZES: [(f32, f32); 2] = [(1920.0, 1080.0), (1290.0, 830.0)];
 
 fn client<'a>(size: (f32, f32)) -> H<'a> {
-    let dir = std::env::temp_dir().join(format!("bn-search-{}-{}", std::process::id(), size.0));
+    let dir = crate::common::scratch(&format!("search-{}", size.0));
     std::fs::create_dir_all(&dir).unwrap();
     let settings = dir.join("settings.json");
     std::fs::write(&settings, r#"{"tiles":false,"tileset":null}"#).unwrap();

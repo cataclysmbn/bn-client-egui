@@ -150,7 +150,7 @@ pub(crate) fn field(h: &H, form: &str, id: &str) -> String {
 
 /// The client at the engine's main menu in English, with the game root and the scratch directory it uses.
 fn at_main_menu() -> (H<'static>, std::path::PathBuf, std::path::PathBuf) {
-    let dir = std::env::temp_dir().join(format!("bn-editor-{}", std::process::id()));
+    let dir = crate::common::scratch("editor");
     std::fs::create_dir_all(&dir).unwrap();
     let (h, root) = start(&dir);
     (h, root, dir)

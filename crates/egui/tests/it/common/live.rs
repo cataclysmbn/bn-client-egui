@@ -103,7 +103,7 @@ pub fn english_transport_with(seed: &str, files: &[(&str, String)]) -> StdioTran
 /// game's.
 pub fn tiled<'a>(name: &str, size: egui::Vec2) -> H<'a> {
     let root = root();
-    let dir = std::env::temp_dir().join(format!("bn-{name}-{}", std::process::id()));
+    let dir = super::scratch(name);
     std::fs::create_dir_all(&dir).unwrap();
     let settings = dir.join("settings.json");
     std::fs::write(&settings, r#"{"tiles":true,"tileset":"UltimateCataclysm"}"#).unwrap();

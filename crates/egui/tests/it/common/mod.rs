@@ -9,6 +9,26 @@ fn next_root() -> usize {
     NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
+/// A new empty directory in the temp dir, named after `name`, removed when the test thread ends (pass or fail).
+pub fn scratch(name: &str) -> std::path::PathBuf {
+    thread_local!(static MADE: Scratch = Scratch::default());
+    #[derive(Default)]
+    struct Scratch(std::cell::RefCell<Vec<std::path::PathBuf>>);
+    impl Drop for Scratch {
+        fn drop(&mut self) {
+            self.0
+                .borrow()
+                .iter()
+                .for_each(|dir| drop(std::fs::remove_dir_all(dir)));
+        }
+    }
+    let dir =
+        std::env::temp_dir().join(format!("bn-{name}-{}-{}", std::process::id(), next_root()));
+    std::fs::create_dir_all(&dir).unwrap();
+    MADE.with(|made| made.0.borrow_mut().push(dir.clone()));
+    dir
+}
+
 pub fn fixture(name: &str) -> Value {
     let text = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -98,11 +118,7 @@ pub fn connected(script: ScriptedTransport) -> EngineModel {
 /// A game root holding one 4x4 tileset `test` whose sheets are solid colours: `a.png` has sprites 0 to 7
 /// (red, green, blue, ... one per cell) and `b.png` sprites 8 and 9. The root is new for every call.
 pub fn game_root(tag: &str) -> std::path::PathBuf {
-    let root = std::env::temp_dir().join(format!(
-        "bn-client-tiles-{}-{tag}-{}",
-        std::process::id(),
-        next_root()
-    ));
+    let root = scratch(&format!("client-tiles-{tag}"));
     let dir = root.join("gfx/test");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
@@ -224,11 +240,7 @@ pub fn with_tiles(mut event: Value) -> Value {
 /// `giant.png` a tree (5) and its ground (6), a dark diamond in the tile's columns of the bottom rows. The root is
 /// new for every call.
 pub fn iso_root(tag: &str) -> std::path::PathBuf {
-    let root = std::env::temp_dir().join(format!(
-        "bn-client-iso-{}-{tag}-{}",
-        std::process::id(),
-        next_root()
-    ));
+    let root = scratch(&format!("client-iso-{tag}"));
     let dir = root.join("gfx/iso");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
@@ -337,11 +349,7 @@ pub fn iso_root(tag: &str) -> std::path::PathBuf {
 /// the square only (`t_wall_half`), and, twice as tall, a tree whose ground is a sprite of its own with grass in its
 /// bottom half.
 pub fn flat_root(tag: &str) -> std::path::PathBuf {
-    let root = std::env::temp_dir().join(format!(
-        "bn-client-flat-{}-{tag}-{}",
-        std::process::id(),
-        next_root()
-    ));
+    let root = scratch(&format!("client-flat-{tag}"));
     let dir = root.join("gfx/flat");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
@@ -496,4 +504,16 @@ pub fn unfolded(mut screen: Value) -> Value {
     }
     open(&mut screen);
     screen
+}
+
+#[test]
+fn a_scratch_dir_is_gone_once_the_test_thread_ends() {
+    let dir = std::thread::spawn(|| {
+        let dir = scratch("gone");
+        assert!(dir.is_dir());
+        dir
+    })
+    .join()
+    .unwrap();
+    assert!(!dir.exists());
 }

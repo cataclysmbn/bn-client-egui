@@ -15,7 +15,7 @@ fn tag(name: &str) -> String {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_vehicle_editor_canvas_fits_a_new_vehicle() {
-    let dir = std::env::temp_dir().join(format!("bn-vux-{}", std::process::id()));
+    let dir = crate::common::scratch("vux");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     click(&mut h, "Editor");
@@ -52,7 +52,7 @@ fn the_vehicle_editor_canvas_fits_a_new_vehicle() {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_canvas_keeps_its_squares() {
-    let dir = std::env::temp_dir().join(format!("bn-vux-map-{}", std::process::id()));
+    let dir = crate::common::scratch("vux-map");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, root) = start(&dir);
     click(&mut h, "Editor");
@@ -123,7 +123,7 @@ pub(crate) fn pick(h: &mut crate::live_editor::H, group: &str, part: &str) {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn a_first_time_walk_builds_fuels_saves_and_spawns_a_vehicle() {
-    let dir = std::env::temp_dir().join(format!("bn-vwalk-{}", std::process::id()));
+    let dir = crate::common::scratch("vwalk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     click(&mut h, "Editor");

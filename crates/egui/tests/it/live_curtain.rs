@@ -45,7 +45,7 @@ end)
 "#;
 
 fn spawn() -> StdioTransport {
-    let dir = std::env::temp_dir().join(format!("bn-curtain-{}", std::process::id()));
+    let dir = crate::common::scratch("curtain");
     let config = dir.join("config");
     let modpath = dir.join("mods").join("curtain_room");
     std::fs::create_dir_all(&config).unwrap();
@@ -69,7 +69,7 @@ fn spawn() -> StdioTransport {
 
 fn start(settings_json: &str) -> H<'static> {
     let root = root();
-    let dir = std::env::temp_dir().join(format!("bn-curtain-ui-{}", std::process::id()));
+    let dir = crate::common::scratch("curtain-ui");
     std::fs::create_dir_all(&dir).unwrap();
     let settings = dir.join("settings.json");
     std::fs::write(&settings, settings_json).unwrap();

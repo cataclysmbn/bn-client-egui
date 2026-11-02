@@ -42,7 +42,7 @@ fn the_player_walks_with_the_map_window_open() {
 fn walk_with_the_map_open(size: egui::Vec2) {
     let engine = std::env::var_os("BN_ENGINE").expect("set BN_ENGINE");
     let root = game_root(engine.as_ref(), None).expect("game root");
-    let dir = std::env::temp_dir().join(format!("bn-world-map-{}", std::process::id()));
+    let dir = crate::common::scratch("world-map");
     std::fs::create_dir_all(&dir).unwrap();
     let settings = dir.join("settings.json");
     std::fs::write(&settings, r#"{"tiles":false,"tileset":null}"#).unwrap();

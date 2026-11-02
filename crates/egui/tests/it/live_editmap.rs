@@ -127,7 +127,7 @@ fn the_map_editor_its_pickers_shape_and_mapgen() {
     let engine = std::env::var_os("BN_ENGINE").expect("set BN_ENGINE");
     let root =
         game_root(engine.as_ref(), std::env::var_os("BN_ROOT").map(Into::into)).expect("game root");
-    let dir = std::env::temp_dir().join(format!("bn-editmap-{}", std::process::id()));
+    let dir = crate::common::scratch("editmap");
     std::fs::create_dir_all(&dir).unwrap();
     let settings = dir.join("settings.json");
     std::fs::write(&settings, r#"{"tiles":true,"tileset":"UltimateCataclysm"}"#).unwrap();

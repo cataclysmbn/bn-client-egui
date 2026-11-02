@@ -157,7 +157,7 @@ end)
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn a_double_click_on_a_locked_door_plays_the_error_sound() {
     let log_path = std::env::var_os("BN_SOUND_LOG").expect("set BN_SOUND_LOG");
-    let dir = std::env::temp_dir().join(format!("bn-locked-{}", std::process::id()));
+    let dir = crate::common::scratch("locked");
     let config = dir.join("config");
     let modpath = dir.join("mods").join("locked_door");
     std::fs::create_dir_all(&config).unwrap();

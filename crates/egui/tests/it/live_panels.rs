@@ -49,7 +49,7 @@ fn window(h: &H, title: &str) {
 fn the_player_walks_with_the_character_and_inventory_windows_open() {
     let engine = std::env::var_os("BN_ENGINE").expect("set BN_ENGINE");
     let root = game_root(engine.as_ref(), None).expect("game root");
-    let dir = std::env::temp_dir().join(format!("bn-panels-{}", std::process::id()));
+    let dir = crate::common::scratch("panels");
     std::fs::create_dir_all(&dir).unwrap();
     let settings = dir.join("settings.json");
     std::fs::write(&settings, r#"{"tiles":false,"tileset":null}"#).unwrap();
@@ -128,7 +128,7 @@ fn a_closed_character_sheet_reopens_on_the_tab_it_was_left_on() {
     let engine = std::env::var_os("BN_ENGINE").expect("set BN_ENGINE");
     for (width, height) in [(1280.0, 800.0), (1920.0, 1080.0)] {
         let root = game_root(engine.as_ref(), None).expect("game root");
-        let dir = std::env::temp_dir().join(format!("bn-panel-tab-{}-{width}", std::process::id()));
+        let dir = crate::common::scratch(&format!("panel-tab-{width}"));
         std::fs::create_dir_all(&dir).unwrap();
         let settings = dir.join("settings.json");
         std::fs::write(&settings, r#"{"tiles":false,"tileset":null}"#).unwrap();
@@ -170,7 +170,7 @@ fn a_closed_character_sheet_reopens_on_the_tab_it_was_left_on() {
 fn the_character_and_inventory_windows_at_150_percent_stay_on_screen() {
     let engine = std::env::var_os("BN_ENGINE").expect("set BN_ENGINE");
     let root = game_root(engine.as_ref(), None).expect("game root");
-    let dir = std::env::temp_dir().join(format!("bn-panels-scale-{}", std::process::id()));
+    let dir = crate::common::scratch("panels-scale");
     std::fs::create_dir_all(&dir).unwrap();
     let settings = dir.join("settings.json");
     std::fs::write(

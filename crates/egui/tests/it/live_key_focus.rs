@@ -62,7 +62,7 @@ fn playing<'a>() -> H<'a> {
 fn playing_in<'a>(size: egui::Vec2) -> H<'a> {
     let engine = std::env::var_os("BN_ENGINE").expect("set BN_ENGINE");
     let root = game_root(engine.as_ref(), None).expect("game root");
-    let dir = std::env::temp_dir().join(format!("bn-key-focus-{}", std::process::id()));
+    let dir = crate::common::scratch("key-focus");
     std::fs::create_dir_all(&dir).unwrap();
     let settings = dir.join("settings.json");
     std::fs::write(&settings, r#"{"tiles":false,"tileset":null}"#).unwrap();

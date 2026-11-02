@@ -17,7 +17,7 @@ const SIZES: [(f32, f32); 2] = [(1280.0, 800.0), (1920.0, 1080.0)];
 
 /// The client in ASCII over a new English engine, in a window of `size`.
 fn client<'a>(size: (f32, f32)) -> H<'a> {
-    let dir = std::env::temp_dir().join(format!("bn-beta-ui-{}-{}", std::process::id(), size.0));
+    let dir = crate::common::scratch(&format!("beta-ui-{}", size.0));
     std::fs::create_dir_all(&dir).unwrap();
     let settings = dir.join("settings.json");
     std::fs::write(&settings, r#"{"tiles":false,"tileset":null}"#).unwrap();

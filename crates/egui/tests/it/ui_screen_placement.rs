@@ -249,8 +249,7 @@ fn crafting_weapons() -> Value {
 #[test]
 fn a_window_left_narrower_than_its_room_keeps_its_width_frame_after_frame() {
     for (screen, kept) in [(3000.0, 2000.0), (1920.0, 1200.0)] {
-        let dir =
-            std::env::temp_dir().join(format!("bn-client-kept-{}-{kept}", std::process::id()));
+        let dir = crate::common::scratch(&format!("client-kept-{kept}"));
         std::fs::create_dir_all(&dir).unwrap();
         let settings = dir.join("settings.json");
         let windows =

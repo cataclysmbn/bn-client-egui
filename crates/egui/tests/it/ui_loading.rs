@@ -14,7 +14,7 @@ const PNG: &[u8] = &[
 ];
 
 fn root() -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("bn-loading-ui-{}", std::process::id()));
+    let dir = crate::common::scratch("loading-ui");
     std::fs::create_dir_all(dir.join("gfx")).unwrap();
     std::fs::write(dir.join("gfx/a.png"), PNG).unwrap();
     dir

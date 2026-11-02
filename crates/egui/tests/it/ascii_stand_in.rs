@@ -6,7 +6,7 @@ use serde_json::json;
 /// A tileset of 4x4 sprites with an ASCII sheet of three sets (all colours, red, bold red) of 256 symbols each, and
 /// `unknown` as the sprite after the sheet; `with_unknown` says whether it defines that tile.
 fn load(tag: &str, with_unknown: bool) -> Tileset {
-    let root = std::env::temp_dir().join(format!("bn-client-ascii-{}-{tag}", std::process::id()));
+    let root = crate::common::scratch(&format!("client-ascii-{tag}"));
     let dir = root.join("gfx/ascii");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(

@@ -104,7 +104,7 @@ fn parts_at(h: &H, id: &str) -> usize {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn a_vehicle_is_drawn_with_the_canvas_tools_in_a_few_strokes() {
-    let dir = std::env::temp_dir().join(format!("bn-vdraw-{}", std::process::id()));
+    let dir = crate::common::scratch("vdraw");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     let mut gestures = Vec::<String>::new();

@@ -44,7 +44,7 @@ fn layout(h: &H) -> (egui::Rect, egui::Rect, egui::Pos2) {
 fn the_flat_map_fills_its_room_at_the_farthest_and_the_closest_zoom() {
     let root = root();
     for window in [egui::vec2(1920.0, 1080.0), egui::vec2(1290.0, 830.0)] {
-        let dir = std::env::temp_dir().join(format!("bn-zoom-{}", std::process::id()));
+        let dir = crate::common::scratch("zoom");
         std::fs::create_dir_all(&dir).unwrap();
         let settings = dir.join("settings.json");
         std::fs::write(&settings, r#"{"tiles":true,"three_d":false}"#).unwrap();

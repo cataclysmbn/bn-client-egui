@@ -749,7 +749,7 @@ fn create_mapgen(h: &mut H, name: &str) -> std::path::PathBuf {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_makes_a_house_from_names_alone_that_new_worlds_place_in_towns() {
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1280.0, 800.0));
@@ -809,7 +809,7 @@ fn the_map_editor_makes_a_house_from_names_alone_that_new_worlds_place_in_towns(
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn a_novice_adds_an_item_group_with_the_placements_tool_and_the_catalog() {
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1280.0, 800.0));
@@ -865,7 +865,7 @@ fn a_novice_adds_an_item_group_with_the_placements_tool_and_the_catalog() {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn a_novice_keeps_squares_in_the_library_and_takes_them_again() {
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1280.0, 800.0));
@@ -918,7 +918,7 @@ fn a_novice_keeps_squares_in_the_library_and_takes_them_again() {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn a_novice_replaces_a_wall_on_the_marked_squares_from_the_catalog() {
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1280.0, 800.0));
@@ -964,7 +964,7 @@ fn a_novice_replaces_a_wall_on_the_marked_squares_from_the_catalog() {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn a_novice_makes_a_chunk_of_marked_squares_and_places_it_twice() {
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1280.0, 800.0));
@@ -1021,7 +1021,7 @@ fn a_novice_makes_a_chunk_of_marked_squares_and_places_it_twice() {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_paints_places_furniture_undoes_previews_saves_and_reopens() {
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1290.0, 830.0));
@@ -1176,7 +1176,7 @@ fn shot_at(h: &mut H, name: &str, sizes: &[(f32, f32)]) {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_vehicle_editor_prototypes_list_keeps_its_id_column_clear_of_the_scroll_bar() {
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1290.0, 830.0));
@@ -1227,7 +1227,7 @@ fn the_vehicle_editor_prototypes_list_keeps_its_id_column_clear_of_the_scroll_ba
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_vehicle_editor_opens_a_prototype_installs_and_saves_a_mod_file() {
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1290.0, 830.0));
@@ -1327,7 +1327,7 @@ fn the_vehicle_editor_opens_a_prototype_installs_and_saves_a_mod_file() {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_vehicle_editor_sets_the_ammunition_of_a_turret_from_the_part_tab() {
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1290.0, 830.0));
@@ -1477,7 +1477,7 @@ fn stable(h: &mut H, what: &str, rect_of: impl Fn(&H) -> Option<egui::Rect>) -> 
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_creates_a_palette_maps_a_symbol_and_saves_it() {
     let sizes = [(1290.0, 830.0), (1280.0, 800.0)];
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1290.0, 830.0));
@@ -1550,7 +1550,7 @@ const HOUSE: &str = "data/json/mapgen/house/house01.json";
 /// A walk's engine profile holding the documents the editors opened before: a map file of the game's data and the
 /// bicycle prototype, both with the core mod.
 fn start_with_recent() -> (H<'static>, String) {
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let root = crate::common::live::root();
     let file = root.join("data/json/mapgen/house/house01.json");
@@ -1665,7 +1665,7 @@ fn the_main_menu_reopens_a_recent_vehicle_in_the_vehicle_editor() {
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_exports_two_squares_stamps_pasted_mapgen_and_takes_it_back() {
     let sizes = [(1280.0, 800.0)];
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1280.0, 800.0));
@@ -1771,7 +1771,7 @@ fn the_map_editor_exports_two_squares_stamps_pasted_mapgen_and_takes_it_back() {
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_lets_turns_pass_and_opens_again_by_itself() {
     let sizes = [(1280.0, 800.0)];
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1280.0, 800.0));
@@ -1821,7 +1821,7 @@ fn faded_squares(h: &H) -> Faded {
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_outlines_overmap_squares_and_shows_the_level_below_faded() {
     let sizes = [(1920.0, 1080.0)];
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     // The engine this test spawns opens files from its profile's user mods, and the recent documents name this one
     // before the engine runs.
     let profile = crate::common::live::reserve_profile();
@@ -1893,7 +1893,7 @@ fn the_map_editor_outlines_overmap_squares_and_shows_the_level_below_faded() {
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_shows_the_squares_beside_the_entry_and_a_click_on_one_opens_it() {
     let sizes = [(1920.0, 1080.0)];
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     let profile = crate::common::live::reserve_profile();
     let moddir = profile.join("mods").join("walk_neighbours");
     std::fs::create_dir_all(&moddir).unwrap();
@@ -2015,7 +2015,7 @@ fn drag_squares(
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_drags_a_placement_whole_and_by_its_corner() {
     let sizes = [(1290.0, 830.0)];
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     let profile = crate::common::live::reserve_profile();
     let moddir = profile.join("mods").join("walk_regions");
     std::fs::create_dir_all(&moddir).unwrap();
@@ -2119,7 +2119,7 @@ fn selected_tool(h: &H) -> Option<String> {
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_tool_keys_choose_tools_and_z_turns_the_clipboard() {
     let sizes = [(1290.0, 830.0)];
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     let profile = crate::common::live::reserve_profile();
     let moddir = profile.join("mods").join("walk_keys");
     std::fs::create_dir_all(&moddir).unwrap();
@@ -2197,7 +2197,7 @@ fn canvas_cells(h: &H) -> Vec<(String, String, String)> {
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_shows_an_overmap_special_by_level_and_a_click_on_a_square_opens_its_mapgen() {
     let sizes = [(1920.0, 1080.0)];
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     let profile = crate::common::live::reserve_profile();
     let moddir = profile.join("mods").join("walk_special");
     std::fs::create_dir_all(&moddir).unwrap();
@@ -2313,7 +2313,7 @@ fn tabs_of(h: &H, of: &str) -> (Vec<String>, Option<String>) {
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_draws_and_erases_the_squares_of_an_overmap_special_and_saves_them() {
     let sizes = [(1920.0, 1080.0)];
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     let profile = crate::common::live::reserve_profile();
     let moddir = profile.join("mods").join("walk_draw");
     std::fs::create_dir_all(&moddir).unwrap();
@@ -2500,7 +2500,7 @@ fn enabled(h: &H, id: &str) -> Option<bool> {
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_places_an_overmap_special_in_the_world_and_tests_it_there() {
     let sizes = [(1920.0, 1080.0)];
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     let profile = crate::common::live::reserve_profile();
     let moddir = profile.join("mods").join("walk_place");
     std::fs::create_dir_all(&moddir).unwrap();
@@ -2578,7 +2578,7 @@ fn map_wall(h: &mut H) {
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_copies_and_cuts_between_two_open_documents_and_pastes() {
     let sizes = [(1280.0, 800.0), (1920.0, 1080.0)];
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     // A window tall enough for the canvas to show the squares the walk aims at.
@@ -2681,7 +2681,7 @@ fn the_map_editor_copies_and_cuts_between_two_open_documents_and_pastes() {
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_makes_a_nested_chunk_and_moves_a_legend_into_a_palette() {
     let sizes = [(1280.0, 800.0), (1920.0, 1080.0)];
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1280.0, 800.0));
@@ -2765,7 +2765,7 @@ fn the_toolbar_offers_the_map_editor_in_game_only_with_the_debug_trait() {
     use crate::live_editor::{invoke, row, text};
     use bn_client_egui::protocol::{InvokeArgs, ScreenRole};
     let sizes = [(1280.0, 800.0), (1920.0, 1080.0)];
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1280.0, 800.0));
@@ -2901,7 +2901,7 @@ fn vehicle_notice(h: &H) -> String {
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_vehicle_editor_turns_a_preview_reloads_a_file_and_asks_before_leaving() {
     let sizes = [(1920.0, 1080.0), (1280.0, 800.0)];
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1920.0, 1080.0));
@@ -3029,7 +3029,7 @@ fn the_vehicle_editor_turns_a_preview_reloads_a_file_and_asks_before_leaving() {
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_exports_a_spawned_vehicle_as_a_placement() {
     let sizes = [(1280.0, 800.0), (1920.0, 1080.0)];
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1280.0, 800.0));
@@ -3099,7 +3099,7 @@ fn tool_tab(h: &H) -> Option<String> {
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_keys_pick_every_tool_and_undo_redo_and_save() {
     let sizes = [(1280.0, 800.0), (1920.0, 1080.0)];
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1920.0, 1080.0));
@@ -3187,7 +3187,7 @@ fn the_map_editor_keys_pick_every_tool_and_undo_redo_and_save() {
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_makes_a_new_overmap_special_and_connects_it() {
     let sizes = [(1920.0, 1080.0), (1280.0, 800.0)];
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1920.0, 1080.0));
@@ -3242,7 +3242,7 @@ fn the_map_editor_makes_a_new_overmap_special_and_connects_it() {
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_adds_a_placement_from_a_marked_rectangle_and_removes_it() {
     let sizes = [(1920.0, 1080.0)];
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1920.0, 1080.0));
@@ -3293,7 +3293,7 @@ fn the_map_editor_adds_a_placement_from_a_marked_rectangle_and_removes_it() {
 fn the_map_editor_stamps_the_document_into_the_world_and_tests_it_there() {
     use bn_client_egui::protocol::ScreenRole;
     let sizes = [(1920.0, 1080.0), (1280.0, 800.0)];
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1920.0, 1080.0));
@@ -3376,7 +3376,7 @@ fn top(h: &H) -> Option<String> {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn a_modder_opens_draws_undoes_saves_tests_and_leaves_the_map_editor_workspace() {
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1290.0, 830.0));
@@ -3506,7 +3506,7 @@ fn a_modder_opens_draws_undoes_saves_tests_and_leaves_the_map_editor_workspace()
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn a_modder_opens_a_prototype_installs_a_part_spawns_and_leaves_the_vehicle_editor_workspace() {
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1290.0, 830.0));
@@ -3599,7 +3599,7 @@ fn focused_on(h: &H, label: &str) -> bool {
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_draws_by_the_keyboard_and_opens_its_keys_with_f1() {
     let sizes = [(1920.0, 1080.0), (1290.0, 830.0)];
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1290.0, 830.0));
@@ -3726,7 +3726,7 @@ fn keybindings_over(h: &mut H, kind: &str, part: &str, name: &str) -> Vec<String
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_editors_keep_their_main_panes_in_view_and_stay_drawn_under_their_keybindings() {
-    let dir = std::env::temp_dir().join(format!("bn-walk-panes-{}", std::process::id()));
+    let dir = crate::common::scratch("walk-panes");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1290.0, 830.0));
@@ -3873,7 +3873,7 @@ fn tab_stops(h: &mut H, most: usize) -> Vec<String> {
 
 /// The client and an engine, the window the smaller size the walks shoot.
 fn audit_start() -> H<'static> {
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1290.0, 830.0));
@@ -4487,7 +4487,7 @@ const CATALOG_SIZES: [(f32, f32); 2] = [(1920.0, 1080.0), (1280.0, 800.0)];
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_shows_the_catalog_search_and_rows_with_a_document_open() {
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1290.0, 830.0));
@@ -4505,7 +4505,7 @@ fn the_map_editor_shows_the_catalog_search_and_rows_with_a_document_open() {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_vehicle_editor_shows_its_lists_with_a_design_open() {
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1290.0, 830.0));
@@ -4563,7 +4563,7 @@ fn put(h: &mut H, x: usize, y: usize) {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn a_first_time_modder_builds_a_house_in_a_new_mod_with_picks_and_shape_tools() {
-    let dir = std::env::temp_dir().join(format!("bn-house-{}", std::process::id()));
+    let dir = crate::common::scratch("house");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1920.0, 1080.0));
@@ -4727,7 +4727,7 @@ fn broken_words_at_both_sizes(h: &mut H, name: &str) -> Vec<String> {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_vehicle_editors_lists_keep_their_words_whole_at_both_sizes() {
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1920.0, 1080.0));
@@ -4749,7 +4749,7 @@ fn the_vehicle_editors_lists_keep_their_words_whole_at_both_sizes() {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editors_lists_keep_their_words_whole_at_both_sizes() {
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1920.0, 1080.0));
@@ -4770,7 +4770,7 @@ fn the_map_editors_lists_keep_their_words_whole_at_both_sizes() {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_select_tool_marks_the_squares_a_drag_spans() {
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1920.0, 1080.0));
@@ -4812,7 +4812,7 @@ fn catalog_rows(h: &H) -> Vec<(String, bool)> {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn the_map_editor_catalog_takes_the_row_double_clicked_after_its_search() {
-    let dir = std::env::temp_dir().join(format!("bn-walk-{}", std::process::id()));
+    let dir = crate::common::scratch("walk");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1920.0, 1080.0));
@@ -4868,7 +4868,7 @@ fn step(h: &mut H, name: &str) {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn a_novice_builds_a_house_within_forty_clicks() {
-    let dir = std::env::temp_dir().join(format!("bn-budget-house-{}", std::process::id()));
+    let dir = crate::common::scratch("budget-house");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1280.0, 800.0));
@@ -5141,7 +5141,7 @@ fn click_mount(h: &mut H, at: (i32, i32)) {
 #[test]
 #[ignore = "requires BN_ENGINE pointing at an engine binary"]
 fn a_novice_builds_a_car_within_twenty_five_clicks() {
-    let dir = std::env::temp_dir().join(format!("bn-budget-car-{}", std::process::id()));
+    let dir = crate::common::scratch("budget-car");
     std::fs::create_dir_all(&dir).unwrap();
     let (mut h, _root) = start(&dir);
     h.set_size(egui::vec2(1280.0, 800.0));

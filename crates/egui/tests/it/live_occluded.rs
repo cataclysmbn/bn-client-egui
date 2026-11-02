@@ -62,7 +62,7 @@ end)
 "#;
 
 fn spawn(tall: bool) -> StdioTransport {
-    let dir = std::env::temp_dir().join(format!("bn-occluded-{}", std::process::id()));
+    let dir = crate::common::scratch("occluded");
     let config = dir.join("config");
     let modpath = dir.join("mods").join("occluded_scene");
     std::fs::create_dir_all(&config).unwrap();
@@ -95,7 +95,7 @@ fn spawn(tall: bool) -> StdioTransport {
 
 fn start(three_d: bool, size: egui::Vec2, tall: bool) -> H<'static> {
     let root = root();
-    let dir = std::env::temp_dir().join(format!("bn-occluded-ui-{}-{three_d}", std::process::id()));
+    let dir = crate::common::scratch(&format!("occluded-ui-{three_d}"));
     std::fs::create_dir_all(&dir).unwrap();
     let settings = dir.join("settings.json");
     std::fs::write(

@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 fn harness<'a>(tag: &str) -> (Harness<'a, Launcher>, Rc<RefCell<Vec<PathBuf>>>, PathBuf) {
-    let dir = std::env::temp_dir().join(format!("bn-setup-ui-{tag}-{}", std::process::id()));
+    let dir = crate::common::scratch(&format!("setup-ui-{tag}"));
     std::fs::create_dir_all(&dir).unwrap();
     let calls = Rc::new(RefCell::new(vec![]));
     let log = calls.clone();
@@ -76,7 +76,7 @@ fn an_executable_path_starts_the_engine() {
 }
 
 fn with_config<'a>(tag: &str) -> (Harness<'a, Launcher>, PathBuf, PathBuf) {
-    let dir = std::env::temp_dir().join(format!("bn-setup-cfg-{tag}-{}", std::process::id()));
+    let dir = crate::common::scratch(&format!("setup-cfg-{tag}"));
     std::fs::create_dir_all(&dir).unwrap();
     let config = dir.join("cfg/config.json");
     let start: Starter = Box::new(|_, _| Ok(Box::new(App::new(FakeModel::default()))));

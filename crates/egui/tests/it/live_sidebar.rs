@@ -76,7 +76,7 @@ fn settle(h: &mut H, secs: u64) {
 fn start<'a>() -> H<'a> {
     let engine = std::env::var_os("BN_ENGINE").expect("set BN_ENGINE");
     let root = game_root(engine.as_ref(), None).expect("game root");
-    let dir = std::env::temp_dir().join(format!("bn-sidebar-{}", std::process::id()));
+    let dir = crate::common::scratch("sidebar");
     std::fs::create_dir_all(&dir).unwrap();
     let settings = dir.join("settings.json");
     std::fs::write(&settings, r#"{"tiles":false,"tileset":null}"#).unwrap();

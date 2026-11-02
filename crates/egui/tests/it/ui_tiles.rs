@@ -126,7 +126,7 @@ fn switching_to_ascii_draws_glyphs_again_and_the_choice_survives_a_restart() {
 
 #[test]
 fn a_tileset_missing_from_the_game_root_is_said_and_ascii_is_drawn() {
-    let root = std::env::temp_dir().join(format!("bn-client-no-gfx-{}", std::process::id()));
+    let root = crate::common::scratch("client-no-gfx");
     std::fs::create_dir_all(&root).unwrap();
     let mut h = harness(&root, root.join("settings.json"));
     h.run_steps(4);

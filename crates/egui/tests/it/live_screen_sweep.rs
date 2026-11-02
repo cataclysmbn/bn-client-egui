@@ -163,7 +163,7 @@ fn every_toolbar_and_manager_screen_keeps_its_size_and_closes_to_the_map() {
 fn sweep(size: egui::Vec2) {
     let engine = std::env::var_os("BN_ENGINE").expect("set BN_ENGINE");
     let root = game_root(engine.as_ref(), None).expect("game root");
-    let dir = std::env::temp_dir().join(format!("bn-sweep-{}", std::process::id()));
+    let dir = crate::common::scratch("sweep");
     std::fs::create_dir_all(&dir).unwrap();
     let settings = dir.join("settings.json");
     std::fs::write(&settings, r#"{"tiles":false,"tileset":null}"#).unwrap();
