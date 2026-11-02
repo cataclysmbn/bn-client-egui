@@ -34,6 +34,9 @@ pub struct Widths {
     /// Each value column's widest value alone, which a column keeps before another column's caption is made whole;
     /// a column it names none of is as wide as `values` says.
     pub cells: Vec<f32>,
+    /// Whether each value column holds words, which start at the column's left edge, not numbers, which end at its
+    /// right edge so their digits line up; a column it names none of is of numbers.
+    pub words: Vec<bool>,
     /// The count editor of a list that picks amounts.
     pub count: f32,
 }
@@ -177,16 +180,17 @@ pub fn spare(row: &mut TableRow) {
     row.col(|_| {});
 }
 
-/// The header row: each value column's caption over its values, right-aligned.
+/// The header row: each value column's caption over its values, aligned as they are.
 pub fn header(mut row: TableRow, widths: &Widths, captions: &[String]) {
     for w in [widths.pick, widths.item, widths.key] {
         cell(&mut row, w, |_| {});
     }
     row.col(|_| {});
-    for (caption, w) in captions.iter().zip(&widths.values) {
+    for (i, (caption, w)) in captions.iter().zip(&widths.values).enumerate() {
         cell(&mut row, *w, |ui| {
-            right_aligned(
+            aligned(
                 ui,
+                widths.words.get(i).copied().unwrap_or_default(),
                 egui::RichText::new(caption).size(tokens::CAPTION).weak(),
             );
         });
@@ -225,6 +229,18 @@ pub fn section(mut row: TableRow, widths: &Widths, across: egui::Rect, title: St
             .extend(),
         );
     });
+}
+
+/// A value of a column, at its left edge when the column holds words, else at its right edge (`right_aligned`).
+pub fn aligned(ui: &mut egui::Ui, words: bool, text: impl Into<egui::WidgetText>) {
+    match words {
+        true => {
+            // The column gap a right-aligned value has before it.
+            ui.add_space(tokens::COLUMN_GAP - tokens::ITEM_GAP);
+            ui.add(egui::Label::new(text).truncate().selectable(false));
+        }
+        false => right_aligned(ui, text),
+    }
 }
 
 /// A value at the right of its column, so the digits of a column line up.

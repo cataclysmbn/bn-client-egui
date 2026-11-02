@@ -357,6 +357,26 @@ impl<M: GameModel> App<M> {
                 ))
             })
             .collect();
+        // A column is of numbers when each of its values starts as one does.
+        let words = list
+            .columns
+            .iter()
+            .map(|column| {
+                rows.iter()
+                    .filter_map(|row| {
+                        row.columns
+                            .iter()
+                            .find(|c| c.key.as_deref() == Some(column.key.as_str()))
+                    })
+                    .map(|c| markup::plain(&c.value.shown()))
+                    .any(|v| {
+                        !v.trim().is_empty()
+                            && !v.trim().starts_with(|c: char| {
+                                c.is_ascii_digit() || "+-\u{2212}.".contains(c)
+                            })
+                    })
+            })
+            .collect();
         let count = match list.selection {
             Selection::Count => spacing.interact_size.x,
             _ => 0.0,
@@ -369,6 +389,7 @@ impl<M: GameModel> App<M> {
             label,
             values,
             cells,
+            words,
             count,
         }
     }

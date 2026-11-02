@@ -587,7 +587,7 @@ impl<M: GameModel> App<M> {
                 .inner,
             );
         });
-        for (column, w) in list.columns.iter().zip(&widths.values) {
+        for (i, (column, w)) in list.columns.iter().zip(&widths.values).enumerate() {
             table::cell(&mut cells, *w, |ui| {
                 let value = row
                     .columns
@@ -595,7 +595,7 @@ impl<M: GameModel> App<M> {
                     .find(|c| c.key.as_deref() == Some(column.key.as_str()))
                     .map(|c| tagged(c.color.as_deref(), &c.value.shown()))
                     .unwrap_or_default();
-                table::right_aligned(ui, line(ui, &value));
+                table::aligned(ui, widths.words[i], line(ui, &value));
             });
         }
         table::cell(&mut cells, widths.count, |ui| {
