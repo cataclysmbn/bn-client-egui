@@ -4447,6 +4447,10 @@ fn continue_through_data_errors(h: &mut H) {
 
 /// Paints one square of the open mapgen so the document counts as edited.
 fn tool_tab_click(h: &mut H) {
+    click_input(h, "Catalog");
+    type_text(h, "adobe wall");
+    key(h, egui::Key::Enter);
+    rest(h);
     double_click(h, "adobe wall");
     open_mapping(h);
     click_beside(h, "Symbol");
