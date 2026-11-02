@@ -4590,11 +4590,13 @@ fn a_first_time_modder_builds_a_house_in_a_new_mod_with_picks_and_shape_tools() 
     dump(&h, "start page");
     // Every click, drag, typed query and key the building takes, in order.
     let mut gestures = Vec::<String>::new();
-    click(&mut h, "New mod folder");
-    walk_shot(&mut h, "02-new-mod-folder");
-    dump(&h, "new mod folder");
+    walk_shot(&mut h, "02-new-map-form");
     click_beside(&mut h, "New map/Name");
     replace_text(&mut h, "house_zz");
+    click_beside(&mut h, "Mod name");
+    replace_text(&mut h, "zz_house_mod");
+    walk_shot(&mut h, "02-new-map-filled");
+    dump(&h, "new map form filled");
     click(&mut h, "Create");
     if find(&h, "Continue").is_some() {
         click(&mut h, "Continue");
@@ -4681,9 +4683,11 @@ fn a_first_time_modder_builds_a_house_in_a_new_mod_with_picks_and_shape_tools() 
     key_mod(&mut h, egui::Modifiers::CTRL, egui::Key::S);
     walk_shot(&mut h, "13-saved");
     dump(&h, "saved");
-    let path = field(&h, "editor:file", "path");
+    assert!(find(&h, "Saved zz_house_mod/house_zz.json.").is_some());
+    let path = crate::common::live::profile_dir().join("mods/zz_house_mod/house_zz.json");
     println!(
-        "SAVEDFILE {path}\n{}",
+        "SAVEDFILE {}\n{}",
+        path.display(),
         std::fs::read_to_string(&path).unwrap_or_else(|e| format!("{e}"))
     );
 
