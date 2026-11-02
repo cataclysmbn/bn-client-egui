@@ -202,7 +202,7 @@ impl<M: GameModel> App<M> {
             false => None,
         };
         let list_height = cap.map_or(list_height, |cap| {
-            cap.min(wanted).max(MIN_ROWS.min(list.total as f32) * step)
+            cap.min(wanted).max(MIN_ROWS.min(list.total.max(1) as f32) * step)
         });
         // The engine may show no more than `rows_shown` rows at once, scrolling the rest, so the parts beside the
         // list keep their room.
