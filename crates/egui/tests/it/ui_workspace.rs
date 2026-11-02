@@ -1288,3 +1288,49 @@ fn a_list_of_the_side_column_shows_at_least_five_rows_under_tabs_beside_an_open_
         }
     }
 }
+
+#[test]
+fn the_tool_tabs_wrap_between_tabs_and_never_inside_one() {
+    let tools = [
+        ("Pencil", "b"),
+        ("Line", "l"),
+        ("Rectangle", "r"),
+        ("Filled rectangle", "u"),
+        ("Ellipse", "o"),
+        ("Room", "m"),
+        ("Fill", "f"),
+        ("Eyedropper", "i"),
+        ("Select", "s"),
+        ("Paste", "v"),
+        ("Placements", "p"),
+    ];
+    for size in [
+        egui::vec2(1280.0, 800.0),
+        egui::vec2(1100.0, 800.0),
+        egui::vec2(900.0, 700.0),
+    ] {
+        let h = shown_with(size, |parts| {
+            let tabs = tools
+                .iter()
+                .map(|(name, key)| json!({"id": format!("tool:{name}"), "label": name, "selected": false, "enabled": true, "hotkey": key}))
+                .collect::<Vec<_>>();
+            parts.push(json!({"id": "ws:modes", "kind": "tabs", "slot": "tools", "tabs": tabs}));
+        });
+        let heights = tools
+            .iter()
+            .map(|(name, _)| {
+                let tab = h.get_by_role_and_label(egui::accesskit::Role::Tab, name);
+                (name, tab.rect().height())
+            })
+            .collect::<Vec<_>>();
+        let one = heights.iter().map(|(_, h)| *h).fold(f32::MAX, f32::min);
+        let tall = heights
+            .iter()
+            .filter(|(_, h)| *h > one + 2.0)
+            .collect::<Vec<_>>();
+        assert!(
+            tall.is_empty(),
+            "{size:?}: tabs of more than one line: {tall:?}"
+        );
+    }
+}
