@@ -207,5 +207,6 @@ mod tests {
         let whole = painted(None);
         assert_eq!(whole[1], color(tint_pixel([200, 40, 40], paint, None)));
         assert_ne!(whole[1], color([200, 40, 40]));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

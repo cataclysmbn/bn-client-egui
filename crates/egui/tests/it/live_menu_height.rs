@@ -10,11 +10,7 @@ use egui_kittest::kittest::Queryable;
 const SIZES: [(f32, f32); 3] = [(1290.0, 830.0), (1280.0, 800.0), (1920.0, 1080.0)];
 
 fn client<'a>(size: (f32, f32), remembered: bool) -> H<'a> {
-    let dir = std::env::temp_dir().join(format!(
-        "bn-menu-height-{}-{}-{remembered}",
-        std::process::id(),
-        size.0
-    ));
+    let dir = crate::common::scratch(&format!("menu-height-{}-{remembered}", size.0));
     std::fs::create_dir_all(&dir).unwrap();
     let windows = match remembered {
         true => format!(

@@ -42,7 +42,7 @@ impl Rec {
             std::fs::remove_dir_all(&frames).unwrap();
         }
         std::fs::create_dir_all(&frames).unwrap();
-        let scratch = std::env::temp_dir().join(format!("bn-demo-{name}-{}", std::process::id()));
+        let scratch = crate::common::scratch(&format!("demo-{name}"));
         std::fs::create_dir_all(&scratch).unwrap();
         let (mut h, _root) = start(&scratch);
         h.set_size(egui::vec2(1920.0, 1080.0));

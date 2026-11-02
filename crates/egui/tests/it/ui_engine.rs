@@ -330,7 +330,7 @@ fn reduced_motion_shows_a_still_mark_in_place_of_the_spinner() {
     let t = t.on("bn.command.submit", vec![fixture("submit_result")]);
     let clock = Clock::manual();
     let clock_handle = clock.clone();
-    let path = std::env::temp_dir().join(format!("bn-spinner-{}.json", std::process::id()));
+    let path = crate::common::scratch("spinner").join("settings.json");
     std::fs::write(
         &path,
         r#"{"tiles":false,"tileset":null,"reduced_motion":true}"#,

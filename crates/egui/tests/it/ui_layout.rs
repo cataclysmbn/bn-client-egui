@@ -257,7 +257,7 @@ fn the_sidebar_follows_the_clamp_when_the_window_shrinks() {
 
 #[test]
 fn the_interface_scale_enlarges_every_text_and_is_kept_after_a_restart() {
-    let path = std::env::temp_dir().join(format!("bn-scale-{}/settings.json", std::process::id()));
+    let path = crate::common::scratch("scale").join("settings.json");
     let _ = std::fs::remove_file(&path);
     let start = |path: &std::path::Path| {
         let (t, _) = session();
@@ -291,7 +291,7 @@ fn the_interface_scale_enlarges_every_text_and_is_kept_after_a_restart() {
 
 #[test]
 fn an_interface_scale_out_of_the_choices_in_the_settings_file_opens_at_the_natural_size() {
-    let dir = std::env::temp_dir().join(format!("bn-scale-zero-{}", std::process::id()));
+    let dir = crate::common::scratch("scale-zero");
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("settings.json");
     std::fs::write(

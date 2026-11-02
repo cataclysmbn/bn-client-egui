@@ -231,7 +231,7 @@ fn frame_cost_idle_and_while_stepping() {
         })
         .unwrap_or(egui::vec2(1300.0, 800.0));
     let root = game_root(engine.as_ref(), None).expect("game root");
-    let dir = std::env::temp_dir().join(format!("bn-perf-{}", std::process::id()));
+    let dir = crate::common::scratch("perf");
     std::fs::create_dir_all(&dir).unwrap();
     let settings = dir.join("settings.json");
     std::fs::write(&settings, format!(r#"{{"tiles":{tiles},"tileset":null}}"#)).unwrap();

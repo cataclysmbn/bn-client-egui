@@ -118,7 +118,7 @@ fn rect(h: &H, role: egui::accesskit::Role, label: &str) -> egui::Rect {
 #[test]
 #[ignore = "needs a Vulkan adapter and SHOT_DIR"]
 fn windows() {
-    let file = std::env::temp_dir().join(format!("u1-shots-{}.json", std::process::id()));
+    let file = crate::common::scratch("u1-shots").join("settings.json");
     let (mut h, script) = harness(&file);
     open(&mut h, &script, "UILIST", "Debug", debug_rows());
     save(&mut h, "menu.png");
@@ -161,7 +161,7 @@ fn windows() {
     save(&mut d, "dragged-and-resized.png");
 
     // Narrowed from its left edge.
-    let narrow = std::env::temp_dir().join(format!("u1-shots-narrow-{}.json", std::process::id()));
+    let narrow = crate::common::scratch("u1-shots-narrow").join("settings.json");
     let (mut n, script) = harness(&narrow);
     open(&mut n, &script, "UILIST", "Debug", debug_rows());
     let dialog = rect(&n, egui::accesskit::Role::Dialog, "Debug");
@@ -173,7 +173,7 @@ fn windows() {
 #[test]
 #[ignore = "needs a Vulkan adapter and SHOT_DIR"]
 fn zoom() {
-    let file = std::env::temp_dir().join(format!("u1-zoom-{}.json", std::process::id()));
+    let file = crate::common::scratch("u1-zoom").join("settings.json");
     let (mut h, _script) = harness(&file);
     h.run_steps(4);
     let step = |h: &mut H, key: &str, name: &str| {

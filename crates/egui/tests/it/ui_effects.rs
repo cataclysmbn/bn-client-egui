@@ -28,11 +28,7 @@ fn with_queued(settings: Option<&str>) -> App<FakeModel> {
     model.queue_effect(shot());
     let app = App::new(model);
     let Some(json) = settings else { return app };
-    let path = std::env::temp_dir().join(format!(
-        "bn-effects-{}-{}.json",
-        std::process::id(),
-        json.len()
-    ));
+    let path = crate::common::scratch("effects").join("settings.json");
     std::fs::write(&path, json).unwrap();
     app.with_settings(path)
 }

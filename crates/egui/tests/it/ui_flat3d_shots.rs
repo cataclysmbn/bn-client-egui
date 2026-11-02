@@ -53,7 +53,7 @@ fn cells() -> Vec<Value> {
 
 fn harness<'a>(size: egui::Vec2) -> H<'a> {
     let root = std::path::PathBuf::from(std::env::var_os("BN_ROOT").expect("set BN_ROOT"));
-    let dir = std::env::temp_dir().join(format!("bn-flat3d-{}", std::process::id()));
+    let dir = crate::common::scratch("flat3d");
     std::fs::create_dir_all(&dir).unwrap();
     let settings = dir.join("settings.json");
     std::fs::write(
