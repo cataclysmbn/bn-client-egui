@@ -335,7 +335,6 @@ mod tests {
         );
         assert!(!speakers.playing(&Track::Music));
         std::fs::remove_dir_all(&dir).unwrap();
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// The sound packs are Ogg Vorbis, whose decoder starts with an empty span.
@@ -428,6 +427,5 @@ mod tests {
         assert_eq!(speakers.fading.len(), 2);
         assert!(speakers.effects.is_empty());
         std::fs::remove_dir_all(&dir).unwrap();
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -395,6 +395,14 @@ impl<M: GameModel> App<M> {
     }
 }
 
+/// The width of `text` cut to one line of at most `max` wide, its end an ellipsis.
+pub(in crate::app) fn cut_width(ui: &egui::Ui, text: &str, font: &egui::FontId, max: f32) -> f32 {
+    let mut job =
+        egui::text::LayoutJob::simple_singleline(text.into(), font.clone(), egui::Color32::WHITE);
+    job.wrap = egui::text::TextWrapping::truncate_at_width(max);
+    ui.painter().layout_job(job).size().x
+}
+
 #[cfg(test)]
 mod tests {
     use super::word_width;
@@ -420,12 +428,4 @@ mod tests {
         output.textures_delta.clear();
         assert_eq!(rows, ["||\u{a0}Foodperson's ", "cape"]);
     }
-}
-
-/// The width of `text` cut to one line of at most `max` wide, its end an ellipsis.
-pub(in crate::app) fn cut_width(ui: &egui::Ui, text: &str, font: &egui::FontId, max: f32) -> f32 {
-    let mut job =
-        egui::text::LayoutJob::simple_singleline(text.into(), font.clone(), egui::Color32::WHITE);
-    job.wrap = egui::text::TextWrapping::truncate_at_width(max);
-    ui.painter().layout_job(job).size().x
 }
