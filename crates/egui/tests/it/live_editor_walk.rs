@@ -4688,7 +4688,7 @@ fn a_first_time_modder_builds_a_house_in_a_new_mod_with_picks_and_shape_tools() 
     println!(
         "SAVEDFILE {}\n{}",
         path.display(),
-        std::fs::read_to_string(&path).unwrap_or_else(|e| format!("{e}"))
+        std::fs::read_to_string(&path).unwrap()
     );
 
     // Test in the world, and back.
