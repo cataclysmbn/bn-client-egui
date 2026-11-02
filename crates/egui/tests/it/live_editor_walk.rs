@@ -1186,6 +1186,10 @@ fn the_vehicle_editor_prototypes_list_keeps_its_id_column_clear_of_the_scroll_ba
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
     show_advanced(&mut h);
+    click_search(&mut h, "Vehicles");
+    type_text(&mut h, "offroad");
+    key(&mut h, egui::Key::Enter);
+    rest(&mut h);
     // Opened, the prototype takes the right of the window and the list is left a narrow pane.
     double_click(&mut h, "Offroad Car");
     wait_kind(&mut h, "vehicle_editor");
@@ -2249,6 +2253,7 @@ fn the_map_editor_shows_an_overmap_special_by_level_and_a_click_on_a_square_open
     rest(&mut h);
     shot_at(&mut h, "sp-3-opened", &sizes);
     dump(&h, "opened mapgen");
+    show_advanced(&mut h);
     let path = field(&h, "editor:file", "path");
     assert!(path.ends_with("house01.json"), "{path}");
 }
@@ -2916,6 +2921,7 @@ fn the_vehicle_editor_turns_a_preview_reloads_a_file_and_asks_before_leaving() {
     double_click(&mut h, "Bicycle");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
+    show_advanced(&mut h);
     let path = crate::common::live::profile_dir().join("mods/zz_veh_reload/zz_veh_reload.json");
     click_footer(&mut h, "Save as");
     type_text(&mut h, &path.to_string_lossy());
@@ -3468,6 +3474,7 @@ fn a_modder_opens_draws_undoes_saves_tests_and_leaves_the_map_editor_workspace()
 
     // Saved as a mod file from the File menu, which asks for the path as the footer would.
     let path = crate::common::live::profile_dir().join("mods/zz_ws_house/zz_ws_house.json");
+    show_advanced(&mut h);
     menu(&mut h, "File", "Save as");
     shot_both(&mut h, "ws-map-08-save-as-asks");
     replace_text(&mut h, &path.to_string_lossy());
@@ -3734,6 +3741,7 @@ fn the_editors_keep_their_main_panes_in_view_and_stay_drawn_under_their_keybindi
     open_map_editor(&mut h);
     create_mapgen(&mut h, "zz_panes");
     rest(&mut h);
+    show_advanced(&mut h);
     shot(&mut h, "map-entries");
     let mut faults = vec![];
     let entries = list_rows(&h, "editor:objects");
@@ -4514,6 +4522,10 @@ fn the_vehicle_editor_shows_its_lists_with_a_design_open() {
     click(&mut h, "Vehicle editor");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
+    click_search(&mut h, "Vehicles");
+    type_text(&mut h, "offroad");
+    key(&mut h, egui::Key::Enter);
+    rest(&mut h);
     double_click(&mut h, "Offroad Car");
     wait_kind(&mut h, "vehicle_editor");
     rest(&mut h);
@@ -4735,6 +4747,10 @@ fn the_vehicle_editors_lists_keep_their_words_whole_at_both_sizes() {
     click(&mut h, "Editor");
     click(&mut h, "Vehicle editor");
     wait_kind(&mut h, "vehicle_editor");
+    rest(&mut h);
+    click_search(&mut h, "Vehicles");
+    type_text(&mut h, "offroad");
+    key(&mut h, egui::Key::Enter);
     rest(&mut h);
     double_click(&mut h, "Offroad Car");
     wait_kind(&mut h, "vehicle_editor");
