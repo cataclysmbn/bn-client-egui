@@ -1196,3 +1196,39 @@ fn a_window_whose_side_columns_leave_the_canvas_no_room_does_not_crash() {
     });
     assert!(h.query_by_label("Tools").is_some());
 }
+
+#[test]
+fn a_status_line_that_fits_beside_the_footer_buttons_cuts_no_value() {
+    let facts = [
+        ("Saved", "No"),
+        ("Placed by", "Not placed"),
+        ("Symbol", "# counter"),
+        ("Inside", "_ wood floor"),
+        ("Brush", "1"),
+        ("Mirror across", "Off"),
+        ("Mirror down", "Off"),
+        ("Apply on save", "Off"),
+    ];
+    let h = shown_with(SIZES[0], |parts| {
+        let stats = facts
+            .iter()
+            .map(|(label, value)| json!({"key": label, "label": label, "value": value}))
+            .collect::<Vec<_>>();
+        parts[5] = json!({"id": "ws:status", "kind": "panel", "slot": "status",
+            "title": "Kitchen", "stats": stats});
+    });
+    let cut = facts
+        .iter()
+        .map(|(_, value)| *value)
+        .chain(["Kitchen"])
+        .any(|t| elided(&h, t).contains(&true));
+    let last = painted(&h, "Off")
+        .iter()
+        .map(|r| r.right())
+        .fold(0.0, f32::max);
+    let spare = rect(&h, "Validate").left() - last;
+    assert!(
+        !cut || spare < 14.0,
+        "{spare} px free beside the buttons while a value is cut"
+    );
+}
