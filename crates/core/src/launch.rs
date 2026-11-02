@@ -93,7 +93,7 @@ fn saved_engine(config_file: &Path) -> Option<PathBuf> {
 
 /// Remembers a working engine path in the config file.
 pub fn save_engine(config_file: &Path, engine: &Path) -> std::io::Result<()> {
-    let engine = std::fs::canonicalize(engine).unwrap_or_else(|_| engine.to_path_buf());
+    let engine = dunce::canonicalize(engine).unwrap_or_else(|_| engine.to_path_buf());
     if saved_engine(config_file).as_deref() == Some(engine.as_path()) {
         return Ok(());
     }
@@ -134,12 +134,18 @@ pub fn resolve(flag: Option<&Path>, search: &Search) -> Result<PathBuf, NotFound
         return Ok(flag.to_path_buf());
     }
     let mut searched = vec![tr("--engine / BN_ENGINE: not set")];
+    // A client bundled as `cataclysm-bn` goes by a name of the engine.
+    let client = search
+        .exe
+        .as_deref()
+        .and_then(|exe| dunce::canonicalize(exe).ok());
+    let is_engine = |p: &Path| is_file(p) && dunce::canonicalize(p).ok() != client;
     let exe_dir = search.exe.as_deref().and_then(Path::parent);
     for dir in exe_dir.into_iter().flat_map(|d| d.ancestors().take(2)) {
         let hit = ENGINE_NAMES
             .iter()
             .map(|n| dir.join(n))
-            .find(|p| is_file(p));
+            .find(|p| is_engine(p));
         if let Some(hit) = hit {
             return Ok(hit);
         }
@@ -147,7 +153,7 @@ pub fn resolve(flag: Option<&Path>, search: &Search) -> Result<PathBuf, NotFound
     }
     if let Some(file) = &search.config_file {
         match saved_engine(file) {
-            Some(saved) if is_file(&saved) => return Ok(saved),
+            Some(saved) if is_engine(&saved) => return Ok(saved),
             Some(saved) => searched.push(tr_format(
                 "%s: saved %s is missing",
                 &[
@@ -163,7 +169,8 @@ pub fn resolve(flag: Option<&Path>, search: &Search) -> Result<PathBuf, NotFound
     }
     let cwd = std::env::current_dir().unwrap_or_default();
     for name in ENGINE_NAMES {
-        if let Ok(hit) = which::which_in(name, search.path_var.as_deref(), &cwd) {
+        let hits = which::which_in_all(name, search.path_var.as_deref(), &cwd);
+        if let Some(hit) = hits.into_iter().flatten().find(|p| is_engine(p)) {
             return Ok(hit);
         }
     }
@@ -218,7 +225,7 @@ pub fn open_engine(
     Ok(Opened { model, root })
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
     use std::os::unix::fs::PermissionsExt;
