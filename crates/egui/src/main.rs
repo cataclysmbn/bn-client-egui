@@ -1,3 +1,6 @@
+// A player starts the game by its icon: no console window beside it.
+#![cfg_attr(windows, windows_subsystem = "windows")]
+
 use bn_client_egui::display::{self, settings_path};
 use bn_client_egui::fonts;
 use bn_client_egui::kit::tokens;

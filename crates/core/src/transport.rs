@@ -76,7 +76,7 @@ pub fn request(id: u64, method: &str, params: Value) -> Value {
 /// `data/` is not enough. The engine resolves `data/` against this base path.
 pub fn game_root(engine: &Path, env_root: Option<PathBuf>) -> Option<PathBuf> {
     env_root.or_else(|| {
-        std::fs::canonicalize(engine)
+        dunce::canonicalize(engine)
             .ok()?
             .ancestors()
             .skip(1)
@@ -175,6 +175,12 @@ impl StdioTransport {
             (None, profile.userdir.clone(), profile.configdir.clone())
         };
         let mut command = Command::new(engine);
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            command.creation_flags(CREATE_NO_WINDOW);
+        }
         if let Some(root) = game_root(engine, std::env::var_os("BN_ROOT").map(PathBuf::from)) {
             command
                 .arg("--basepath")
